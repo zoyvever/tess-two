@@ -30,36 +30,58 @@ public class MainActivity extends AppCompatActivity {
         assert textView != null;
 
         String filename = "mcr.traineddata";
-        File file = new File(this.getFilesDir() + "/data/tessdata/", filename);
-        if (!file.mkdirs()) {
-            Log.wtf("MainActivity.onCreate", "Cannot mkdirs");
+
+        //String base = Environment.getExternalStorageDirectory() + File.separator + "micrtes" + File.separator;
+        String base = "/data/local/tmp/micr/";
+
+        File file0 = new File(base);
+        if (!file0.mkdir()) {
+            Log.wtf("MainActivity.onCreate", "Cannot mkdir 0");
+        }
+        Log.wtf("MainActivity.onCreate", "file0: " + file0.exists());
+
+
+        File file1 = new File(base + "tessdata");
+        if (!file1.mkdir()) {
+            Log.wtf("MainActivity.onCreate", "Cannot mkdir 1");
         }
 
+        File file = new File(base + "/tessdata/" + filename);
         Log.w("MainActivity.onCreate", "filename: " + file.getAbsolutePath());
-
         try {
+            Log.wtf("MainActivity.onCreate", "file.exists: " + file.exists() + " file.canWrite: " + file.canWrite());
+
             FileOutputStream outputStream = openFileOutput(filename, Context.MODE_PRIVATE);
-            InputStream mcrInputStream = getResources().openRawResource(R.raw.mcr);
+            InputStream inputStream = getResources().openRawResource(R.raw.mcr);
 
-            copy(mcrInputStream, outputStream);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            try {
+                byte[] buffer = new byte[0x80000]; // Adjust if you want
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                    Log.wtf("MainActivity.onCreate", "bytesRead: " + bytesRead);
+                }
+            } finally {
+                try {
+                    if (outputStream != null) outputStream.close();
+                } catch (IOException ignored) {
+                }
+                try {
+                    if (inputStream != null) inputStream.close();
+                } catch (IOException ignored) {
+                }
+            }
+
+
+        } catch (Exception e) {
+            Log.e("MainActivity", "copy", e);
         }
-
-        // TODO: compile datamodel for Android or use existing for English - I want to recognize anything for Android now
-        //
-        // Now if run app under debug (Shift + F9), then open Android Monitor (Alt + 6 - not F6, just 6)
-        // Logs looks like below. Main problem - SIGSEGV
-        //
-        // 05-06 01:02:12.100 18564-18564/com.example.micrtes W/onCreate: filename: /data/data/com.example.micrtes/files/data/tessdata/mcr.traineddata
-        // 05-06 01:02:12.110 18564-18564/com.example.micrtes V/BitmapFactory: DecodeImagePath(decodeResourceStream3) : res/drawable/nn3.png
-        // 05-06 01:02:12.170 18564-18564/com.example.micrtes E/Tesseract(native): Could not initialize Tesseract API with language=mcr!
-        // 05-06 01:02:12.410 18564-18564/com.example.micrtes A/libc: Fatal signal 11 (SIGSEGV), code 1, fault addr 0x8 in tid 18564 (example.micrtes)
+        Log.wtf("MainActivity.onCreate", "file: " + file.exists() + " len : " + file.length());
 
 
         Bitmap bm= BitmapFactory.decodeResource(getResources(),R.drawable.nn3);
         TessBaseAPI baseApi = new TessBaseAPI();
-        baseApi.init(this.getFilesDir() + "/data/", "mcr"); // myDir + "/tessdata/eng.traineddata" must be present
+        baseApi.init(base, "mcr"); // myDir + "/tessdata/eng.traineddata" must be present
         baseApi.setImage(bm);
         String recognizedText = baseApi.getUTF8Text(); // Log or otherwise display this string...
         textView.setText(recognizedText);
@@ -68,24 +90,25 @@ public class MainActivity extends AppCompatActivity {
 
     private void copy(InputStream inputStream, OutputStream outputStream) {
         try {
-            byte[] buffer = new byte[1024]; // Adjust if you want
+            byte[] buffer = new byte[0x10000]; // Adjust if you want
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1)
             {
                 outputStream.write(buffer, 0, bytesRead);
+                Log.wtf("MainActivity.onCreate", "bytesRead: " + bytesRead);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e("MainActivity", "copy", e);
         } finally {
             try {
                 inputStream.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.e("MainActivity", "copy", e);
             }
             try {
                 outputStream.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.e("MainActivity", "copy", e);
             }
         }
     }
