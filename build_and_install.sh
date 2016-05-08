@@ -1,4 +1,4 @@
-#./gradlew assembleDebug
+./gradlew assembleDebug
 
 # copy trained data
 adb shell mkdir -p /data/local/tmp/micr/tessdata 
