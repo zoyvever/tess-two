@@ -110,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
         TessBaseAPI baseApi = new TessBaseAPI();
         baseApi.init(base, "mcr");
         baseApi.setImage(bm);
-        String recognizedText = baseApi.getUTF8Text();.
+        String recognizedText = baseApi.getUTF8Text();
         textView.setText(recognizedText);
         baseApi.end();
 
