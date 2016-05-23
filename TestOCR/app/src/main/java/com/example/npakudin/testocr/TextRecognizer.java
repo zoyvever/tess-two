@@ -48,6 +48,10 @@ public class TextRecognizer {
             initTessBaseApi(context);
             baseApi.setImage(bm);
 
+            // set recognition rect
+            //Rect ligature = new Rect(780, 700, 1080, 810);
+            //baseApi.setRectangle(ligature);
+
             String recognizedText = baseApi.getUTF8Text();
             Log.w(LOGTAG, "recognizedText: " + recognizedText);
 
@@ -57,17 +61,6 @@ public class TextRecognizer {
 
             Canvas canvas = new Canvas(bm);
 
-//            Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-//            textPaint.setColor(Color.rgb(0xff, 0, 0));
-//            textPaint.setTextSize((int) (48 * scale));
-//            textPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
-//
-//            Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-//            confPaint.setColor(Color.rgb(0, 0xff, 0));
-//            confPaint.setTextSize((int) (48 * scale));
-//            confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
-//
-
             List<String> parsed = new ArrayList<String>();
             if (recognizedText.trim().length() > 0) {
 
@@ -76,40 +69,60 @@ public class TextRecognizer {
                     ResultIterator resultIterator = baseApi.getResultIterator();
                     do {
                         Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                        List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
 
                         Symbol symbol = new Symbol();
                         for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
                             symbol.symbol = item.first;
                             symbol.confidence = item.second;
+                            symbol.choicesAndConf = choicesAndConf;
                             symbol.rect = rect;
                         }
                         symbols.add(symbol);
                     } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
                 }
 
+                float prevRight = 0;
+                float prevBottom = 0;
                 for (Symbol symbol : symbols) {
 
-                    Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                    textPaint.setColor(Color.rgb(0xff, 0, 0));
-                    textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
-                    textPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
+                    for (int i=0; i<symbol.choicesAndConf.size(); i++) {
 
-                    canvas.drawText(symbol.symbol, symbol.rect.left, symbol.rect.top, textPaint);
+                        Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                        textPaint.setColor(Color.rgb(0xff, 0, 0));
+                        textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
+                        textPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
+
+                        canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
 
 
-                    String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.confidence);
-                    double confColor = 255 - (symbol.confidence.doubleValue() * 155);
+                        String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
+                        double confColor = 255 - (symbol.confidence.doubleValue() * 155);
 
-                    Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                    confPaint.setColor(Color.rgb(0, 0, (int)confColor));
-                    confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
-                    confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
+                        Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                        confPaint.setColor(Color.rgb(0, 0, (int) confColor));
+                        confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
+                        confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
 
-                    canvas.drawText(conf, symbol.rect.left, symbol.rect.bottom + 60, confPaint);
+                        canvas.drawText(conf, symbol.rect.left, symbol.rect.top - 120 - 200 * i, confPaint);
+                    }
+
+                    Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
+
+                    if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
+                        // new line
+                        prevRight = 0;
+                    }
+                    canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
+                    prevRight = symbol.rect.right;
+                    prevBottom = symbol.rect.bottom;
                 }
 
-
             }
+            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            borderRectPaint.setColor(Color.rgb(0, 0xff, 0xff));
+            //canvas.drawRect(ligature, borderRectPaint);
 
             CheckData checkData = new CheckData();
             checkData.accountNumber = parsed.size() > 0 ? parsed.get(0) : "UNRECOGNIZED";
@@ -127,39 +140,21 @@ public class TextRecognizer {
     public static class Symbol {
         public String symbol;
         public Double confidence;
+
+        public List<Pair<String, Double>> choicesAndConf;
         public Rect rect;
     }
 
 
     @NonNull
     public static Bitmap prepareImageForOcr(Bitmap bm, int threshold) {
-        int[] pixels = new int[bm.getWidth() * bm.getHeight()];
-        bm.getPixels(pixels, 0, bm.getWidth(), 0, 0, bm.getWidth(), bm.getHeight());
-
-        for (int y=0; y<bm.getHeight(); y++) {
-            for (int x=0; x<bm.getWidth(); x++) {
-                int i = y * bm.getWidth() + x;
-
-                int r = (pixels[i] >> 0) & 0xff;
-                int g = (pixels[i] >> 8) & 0xff;
-                int b = (pixels[i] >> 16) & 0xff;
-                int res = r + g + b;
-
-                if (res > 3 * threshold) {
-                    pixels[i] = 0xffffff; // white
-                } else {
-                    pixels[i] = 0x000000; // black
-                }
-            }
-        }
-
-
-        Bitmap bm2 = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight());
-        bm2.setPixels(pixels, 0, bm2.getWidth(), 0, 0, bm2.getWidth(), bm2.getHeight());
         //binarize and find skew
-        Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm2));
+        Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
+                3000, 3000,
+                3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
+                Binarize.OTSU_SCORE_FRACTION);
         Float s = Skew.findSkew(imag);
-        Log.d("mytag1", s.toString());
+        Log.d(LOGTAG, s.toString());
         return WriteFile.writeBitmap(Rotate.rotate(imag,s));
 
     }

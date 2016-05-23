@@ -59,11 +59,11 @@ public class MainActivity extends AppCompatActivity {
         Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.check2, options);
 
 
-        saveBitmap(src, "_src");
+        //saveBitmap(src, "_src");
 
         int threshold = (int)(255 * 0.30);
         Bitmap res = TextRecognizer.prepareImageForOcr(src, threshold);
-        saveBitmap(res, String.format("_%03d", threshold));
+        //saveBitmap(res, String.format("_%03d", threshold));
         TextRecognizer.CheckData checkData = TextRecognizer.recognize(getApplicationContext(), res);
 
 
