@@ -11,6 +11,12 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
 
+import com.googlecode.leptonica.android.Binarize;
+import com.googlecode.leptonica.android.Pix;
+import com.googlecode.leptonica.android.ReadFile;
+import com.googlecode.leptonica.android.Rotate;
+import com.googlecode.leptonica.android.Skew;
+import com.googlecode.leptonica.android.WriteFile;
 import com.googlecode.tesseract.android.ResultIterator;
 import com.googlecode.tesseract.android.TessBaseAPI;
 
@@ -150,7 +156,12 @@ public class TextRecognizer {
 
         Bitmap bm2 = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight());
         bm2.setPixels(pixels, 0, bm2.getWidth(), 0, 0, bm2.getWidth(), bm2.getHeight());
-        return bm2;
+        //binarize and find skew
+        Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm2));
+        Float s = Skew.findSkew(imag);
+        Log.d("mytag1", s.toString());
+        return WriteFile.writeBitmap(Rotate.rotate(imag,s));
+
     }
 
     public static File createMicrTessData(Context context) {
