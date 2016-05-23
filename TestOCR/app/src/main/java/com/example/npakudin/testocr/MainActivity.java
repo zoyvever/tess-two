@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
     private void recognize() {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inMutable = true;
-        Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.check1, options);
+        Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.check2, options);
 
 
         saveBitmap(src, "_src");
