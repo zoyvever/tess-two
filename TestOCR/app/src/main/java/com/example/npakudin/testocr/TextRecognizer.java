@@ -10,6 +10,7 @@ import android.graphics.Rect;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
+import android.util.SparseIntArray;
 
 import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
@@ -25,8 +26,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class TextRecognizer {
 
@@ -43,7 +46,7 @@ public class TextRecognizer {
         }
     }
 
-    public static CheckData recognize(Context context, Bitmap bm) {
+    public static CheckData recognize(Context context, Bitmap bm, int flag) {
         try {
             initTessBaseApi(context);
             baseApi.setImage(bm);
@@ -58,84 +61,137 @@ public class TextRecognizer {
 
             float scale = context.getResources().getDisplayMetrics().density;
 
-
             Canvas canvas = new Canvas(bm);
 
             List<String> parsed = new ArrayList<String>();
             if (recognizedText.trim().length() > 0) {
 
-                List<Symbol> symbols = new ArrayList<Symbol>();
-                {
-                    ResultIterator resultIterator = baseApi.getResultIterator();
-                    do {
-                        Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
-                        List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                List<Symbol> symbols = new ArrayList();
+                SparseIntArray bottom = new SparseIntArray();
+                SparseIntArray top = new SparseIntArray();
 
-                        Symbol symbol = new Symbol();
-                        for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
-                            symbol.symbol = item.first;
-                            symbol.confidence = item.second;
-                            symbol.choicesAndConf = choicesAndConf;
-                            symbol.rect = rect;
+                ResultIterator resultIterator = baseApi.getResultIterator();
+                do {
+                    Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                    List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+
+                    Symbol symbol = new Symbol();
+
+                    for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
+                        symbol.symbol = item.first;
+                        symbol.confidence = item.second;
+                        symbol.choicesAndConf = choicesAndConf;
+                        symbol.rect = rect;
+                    //in first iteration fill the SpraseArray with all tops and bottoms of rect of symbols
+                    //which wass recognized with more than 75% of confidence.
+                        if (symbol.confidence >70 & flag==0) {
+                            if (bottom.get(symbol.rect.bottom)>0) {
+                                bottom.put(symbol.rect.bottom, bottom.get(symbol.rect.bottom)+1);
+                            }
+                            else {
+                                bottom.put(symbol.rect.bottom, 1);
+                            }
+
+                            if (top.get(symbol.rect.top)>0) {
+                                top.put(symbol.rect.top, top.get(symbol.rect.top)+1);
+                            }
+                            else {
+                                top.put(symbol.rect.top, 1);
+                            }
                         }
-                        symbols.add(symbol);
-                    } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
-                }
-
-                float prevRight = 0;
-                float prevBottom = 0;
-                for (Symbol symbol : symbols) {
-
-                    for (int i=0; i<symbol.choicesAndConf.size(); i++) {
-
-                        Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                        textPaint.setColor(Color.rgb(0xff, 0, 0));
-                        textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
-                        textPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
-
-                        canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
-
-
-                        String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
-                        double confColor = 255 - (symbol.confidence.doubleValue() * 155);
-
-                        Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                        confPaint.setColor(Color.rgb(0, 0, (int) confColor));
-                        confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
-                        confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
-
-                        canvas.drawText(conf, symbol.rect.left, symbol.rect.top - 120 - 200 * i, confPaint);
                     }
-
-                    Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                    borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
-
-                    if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
-                        // new line
-                        prevRight = 0;
+                    symbols.add(symbol);
+                } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
+                int trueBottom=0;
+                int trueTop=0;
+                int trueBotI=0;
+                int trueTopI=0;
+                //Finding top and bottom to crop the image, croping and calling the recognize method again
+                //on this croped image
+                if (flag==0) {
+                    for(int i = 0; i < bottom.size(); i++) {
+                        int key = bottom.keyAt(i);
+                        if (bottom.get(key)>trueBotI) {
+                            trueBottom = bottom.keyAt(i);
+                            trueBotI=bottom.get(key);
+                            Log.d("bottom", ""+ bottom.get(key));
+                        }
                     }
-                    canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
-                    prevRight = symbol.rect.right;
-                    prevBottom = symbol.rect.bottom;
-                }
+                    Log.d("trueBottom", "bottom value: "+ trueBottom+" frequency: "+ trueBotI);
+                    for(int i = 0; i < top.size(); i++) {
+                        int key = top.keyAt(i);
+                        if (top.get(key)>trueTopI){
+                            trueTop = top.keyAt(i);
+                            trueTopI=top.get(key);
 
+                        }
+                    }
+                    Log.d("trueTop", "top value: "+ trueTop+" frequency: "+ trueTopI);
+                    Bitmap trueBm= Bitmap.createBitmap(bm, 0, trueTop, bm.getWidth(), trueBottom-trueTop);
+                    TextRecognizer.recognize(context, trueBm, 1);
+                    CheckData checkData = new CheckData();
+                    checkData.accountNumber = parsed.size() > 0 ? parsed.get(0) : "UNRECOGNIZED";
+                    checkData.routingNumber = parsed.size() > 1 ? parsed.get(1) : "UNRECOGNIZED";
+                    checkData.checkNumber   = parsed.size() > 2 ? parsed.get(2) : "UNRECOGNIZED";
+                    checkData.res=trueBm;
+
+                    return checkData;
+                }
+                else {
+
+                    float prevRight = 0;
+                    float prevBottom = 0;
+                    Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    textPaint.setColor(Color.rgb(0xff, 0, 0));
+                    for (Symbol symbol : symbols) {
+
+                        for (int i = 0; i < symbol.choicesAndConf.size(); i++) {
+
+                            textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
+//                        textPaint.setShadowLayer(1f, 0f, 1f, Color.BLUE);
+
+                            canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
+
+
+                            String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
+                            double confColor = 255 - (symbol.confidence.doubleValue() * 3);
+                            Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol " + symbol.choicesAndConf.get(i).first + "; top " + symbol.rect.top);
+
+                            Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                            confPaint.setColor(Color.rgb(0, 0, (int) confColor));
+                            confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
+                            confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
+
+                            canvas.drawText(conf, symbol.rect.left, symbol.rect.top - 120 - 200 * i, confPaint);
+                        }
+
+                        Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                        borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
+
+                        if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
+                            // new line
+                            prevRight = 0;
+                        }
+                        canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
+                        prevRight = symbol.rect.right;
+                        prevBottom = symbol.rect.bottom;
+                    }
+                }
             }
             Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             borderRectPaint.setColor(Color.rgb(0, 0xff, 0xff));
             //canvas.drawRect(ligature, borderRectPaint);
 
-            CheckData checkData = new CheckData();
-            checkData.accountNumber = parsed.size() > 0 ? parsed.get(0) : "UNRECOGNIZED";
-            checkData.routingNumber = parsed.size() > 1 ? parsed.get(1) : "UNRECOGNIZED";
-            checkData.checkNumber   = parsed.size() > 2 ? parsed.get(2) : "UNRECOGNIZED";
-
-            return checkData;
 
         } catch (Exception e) {
             Log.w(LOGTAG, "onCreate", e);
             return null;
         }
+        CheckData checkData = new CheckData();
+        checkData.res=bm;
+        return checkData;
     }
+
 
     public static class Symbol {
         public String symbol;
@@ -237,12 +293,14 @@ public class TextRecognizer {
     }
 
     public static class CheckData {
-        public String raw;
-        public String rawConfLevels;
 
+        public String routingNumber="";
+        public String accountNumber="";
+        public String checkNumber="";
+        public Bitmap res;
 
-        public String routingNumber;
-        public String accountNumber;
-        public String checkNumber;
+        public Bitmap getBitmap(){
+            return res;
+        }
     }
 }

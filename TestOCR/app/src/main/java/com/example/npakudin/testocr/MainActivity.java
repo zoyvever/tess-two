@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -16,6 +17,8 @@ import android.widget.TextView;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -37,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
         imageViewSrc = (ImageView) findViewById(R.id.imageViewSrc);
         imageViewRes = (ImageView) findViewById(R.id.imageViewRes);
         textViewRes = (TextView) findViewById(R.id.textViewRes);
+        int i =0;
 
         button.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -56,18 +60,23 @@ public class MainActivity extends AppCompatActivity {
     private void recognize() {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inMutable = true;
-        Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.check2, options);
 
+        File myFolder = new File("assets/img");
+        File[] files = myFolder.listFiles();
+//        for (int i=0; i <files.length; i++) {
+//            try {
+//                InputStream ims = getAssets().open(files[i].getName());
+//                Bitmap src = BitmapFactory.decodeStream(ims);
+                Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.c, options);
 
-        //saveBitmap(src, "_src");
-
-        int threshold = (int)(255 * 0.30);
-        Bitmap res = TextRecognizer.prepareImageForOcr(src, threshold);
-        //saveBitmap(res, String.format("_%03d", threshold));
-        TextRecognizer.CheckData checkData = TextRecognizer.recognize(getApplicationContext(), res);
-
-
-        showResults(src, res, checkData);
+                int threshold = (int) (255 * 0.30);
+                Bitmap res = TextRecognizer.prepareImageForOcr(src, threshold);
+                TextRecognizer.CheckData checkData = TextRecognizer.recognize(getApplicationContext(), res,0);
+                showResults(src, checkData.getBitmap(), checkData);
+//            } catch (IOException ex) {
+//                return;
+//            }
+//        }
     }
 
     private void showResults(Bitmap src, Bitmap res, final TextRecognizer.CheckData checkData) {
@@ -76,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
                 checkData.routingNumber, checkData.accountNumber, checkData.checkNumber);
 
         imageViewSrc.setImageBitmap(src);
-        imageViewRes.setImageBitmap(res);
+        imageViewRes.setImageBitmap(checkData.getBitmap());
         textViewRes.setText(message);
     }
 
