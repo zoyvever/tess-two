@@ -67,19 +67,21 @@ public class MainActivity extends AppCompatActivity {
 //            try {
 //                InputStream ims = getAssets().open(files[i].getName());
 //                Bitmap src = BitmapFactory.decodeStream(ims);
-                Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.c, options);
+        Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.c, options);
+//        Log.d("AssetsLog", files[0].getName().toString());
 
                 int threshold = (int) (255 * 0.30);
                 Bitmap res = TextRecognizer.prepareImageForOcr(src, threshold);
-                TextRecognizer.CheckData checkData = TextRecognizer.recognize(getApplicationContext(), res,0);
-                showResults(src, checkData.getBitmap(), checkData);
+                TextRecognizer.CheckData checkData = TextRecognizer.recognize(getApplicationContext(), res,true);
+
+                showResults(src, checkData);
 //            } catch (IOException ex) {
 //                return;
 //            }
 //        }
     }
 
-    private void showResults(Bitmap src, Bitmap res, final TextRecognizer.CheckData checkData) {
+    private void showResults(Bitmap src, final TextRecognizer.CheckData checkData) {
 
         String message = String.format("Routing Number: %s\nAccount Number: %s\nCheck Number: %s",
                 checkData.routingNumber, checkData.accountNumber, checkData.checkNumber);

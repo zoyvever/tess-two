@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 public class TextRecognizer {
 
@@ -46,35 +45,30 @@ public class TextRecognizer {
         }
     }
 
-    public static CheckData recognize(Context context, Bitmap bm, int flag) {
+    public static CheckData recognize(Context context, Bitmap bm, boolean isFirstIter) {
         try {
+
             initTessBaseApi(context);
             baseApi.setImage(bm);
-
-            // set recognition rect
-            //Rect ligature = new Rect(780, 700, 1080, 810);
-            //baseApi.setRectangle(ligature);
-
+//            set recognition rect
+//            Rect ligature = new Rect(3,trueTop,0, trueBottom);
+//            baseApi.setRectangle(ligature);
             String recognizedText = baseApi.getUTF8Text();
             Log.w(LOGTAG, "recognizedText: " + recognizedText);
-
-
             float scale = context.getResources().getDisplayMetrics().density;
-
-            Canvas canvas = new Canvas(bm);
 
             List<String> parsed = new ArrayList<String>();
             if (recognizedText.trim().length() > 0) {
 
                 List<Symbol> symbols = new ArrayList();
-                SparseIntArray bottom = new SparseIntArray();
-                SparseIntArray top = new SparseIntArray();
+                HashMap <Integer,Integer> bottom = new HashMap<>();
+                HashMap <Integer,Integer> top = new HashMap<>();
+
 
                 ResultIterator resultIterator = baseApi.getResultIterator();
                 do {
                     Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
                     List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
-
                     Symbol symbol = new Symbol();
 
                     for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
@@ -82,53 +76,23 @@ public class TextRecognizer {
                         symbol.confidence = item.second;
                         symbol.choicesAndConf = choicesAndConf;
                         symbol.rect = rect;
-                    //in first iteration fill the SpraseArray with all tops and bottoms of rect of symbols
-                    //which wass recognized with more than 75% of confidence.
-                        if (symbol.confidence >70 & flag==0) {
-                            if (bottom.get(symbol.rect.bottom)>0) {
-                                bottom.put(symbol.rect.bottom, bottom.get(symbol.rect.bottom)+1);
-                            }
-                            else {
-                                bottom.put(symbol.rect.bottom, 1);
-                            }
-
-                            if (top.get(symbol.rect.top)>0) {
-                                top.put(symbol.rect.top, top.get(symbol.rect.top)+1);
-                            }
-                            else {
-                                top.put(symbol.rect.top, 1);
-                            }
+                        //in first iteration fill the SpraseArray with all tops and bottoms of rect of symbols
+                        //which was recognized with more than 70% of confidence.
+                        if (symbol.confidence >70 && isFirstIter) {
+                            bottom=fillTheMap(bottom, symbol.rect.bottom);
+                            top= fillTheMap(top, symbol.rect.top);
                         }
                     }
                     symbols.add(symbol);
                 } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
-                int trueBottom=0;
-                int trueTop=0;
-                int trueBotI=0;
-                int trueTopI=0;
                 //Finding top and bottom to crop the image, croping and calling the recognize method again
                 //on this croped image
-                if (flag==0) {
-                    for(int i = 0; i < bottom.size(); i++) {
-                        int key = bottom.keyAt(i);
-                        if (bottom.get(key)>trueBotI) {
-                            trueBottom = bottom.keyAt(i);
-                            trueBotI=bottom.get(key);
-                            Log.d("bottom", ""+ bottom.get(key));
-                        }
-                    }
-                    Log.d("trueBottom", "bottom value: "+ trueBottom+" frequency: "+ trueBotI);
-                    for(int i = 0; i < top.size(); i++) {
-                        int key = top.keyAt(i);
-                        if (top.get(key)>trueTopI){
-                            trueTop = top.keyAt(i);
-                            trueTopI=top.get(key);
+                if (isFirstIter) {
 
-                        }
-                    }
-                    Log.d("trueTop", "top value: "+ trueTop+" frequency: "+ trueTopI);
+                    int trueTop=findMaxFrequency(top);
+                    int trueBottom=findMaxFrequency(bottom);
                     Bitmap trueBm= Bitmap.createBitmap(bm, 0, trueTop, bm.getWidth(), trueBottom-trueTop);
-                    TextRecognizer.recognize(context, trueBm, 1);
+                    TextRecognizer.recognize(context, trueBm, false);
                     CheckData checkData = new CheckData();
                     checkData.accountNumber = parsed.size() > 0 ? parsed.get(0) : "UNRECOGNIZED";
                     checkData.routingNumber = parsed.size() > 1 ? parsed.get(1) : "UNRECOGNIZED";
@@ -138,11 +102,12 @@ public class TextRecognizer {
                     return checkData;
                 }
                 else {
-
+                    Canvas canvas = new Canvas(bm);
                     float prevRight = 0;
                     float prevBottom = 0;
                     Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
                     textPaint.setColor(Color.rgb(0xff, 0, 0));
+
                     for (Symbol symbol : symbols) {
 
                         for (int i = 0; i < symbol.choicesAndConf.size(); i++) {
@@ -192,6 +157,30 @@ public class TextRecognizer {
         return checkData;
     }
 
+    public static int findMaxFrequency(HashMap <Integer,Integer> map){
+        int trueBorder=0;
+        int freq=0;
+        for (HashMap.Entry<Integer, Integer> entry : map.entrySet())
+        {
+            if (entry.getValue()>freq) {
+                trueBorder=entry.getKey();
+                freq=entry.getValue();
+            }
+        }
+        return trueBorder;
+    }
+
+
+    public static HashMap<Integer, Integer> fillTheMap(HashMap<Integer,Integer> map, Integer rect){
+    if (map.get(rect)!=null) {
+        map.put(rect, map.get(rect)+1);
+    }
+    else {
+        map.put(rect, 1);
+    }
+        Log.d("fillmap", map.keySet().toString());
+        return map;
+}
 
     public static class Symbol {
         public String symbol;
@@ -210,7 +199,6 @@ public class TextRecognizer {
                 3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
                 Binarize.OTSU_SCORE_FRACTION);
         Float s = Skew.findSkew(imag);
-        Log.d(LOGTAG, s.toString());
         return WriteFile.writeBitmap(Rotate.rotate(imag,s));
 
     }
