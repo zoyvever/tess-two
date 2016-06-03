@@ -1,7 +1,9 @@
 package com.example.npakudin.testocr;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
@@ -60,21 +62,18 @@ public class MainActivity extends AppCompatActivity {
     private void recognize() {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inMutable = true;
-
-        File myFolder = new File("assets/img");
-        File[] files = myFolder.listFiles();
-//        for (int i=0; i <files.length; i++) {
-//            try {
-//                InputStream ims = getAssets().open(files[i].getName());
-//                Bitmap src = BitmapFactory.decodeStream(ims);
-        Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.c, options);
-//        Log.d("AssetsLog", files[0].getName().toString());
-
+//        AssetManager assetManager = getApplicationContext().getAssets();
+//        try{
+//              Bitmap src = BitmapFactory.decodeStream(assetManager.open("img/a271071321ac9080054103c0903"));
+///             InputStream ims = getAssets().open(files[i].getName());
+//              Bitmap src = BitmapFactory.decodeStream(ims);
+                Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.b, options);
                 int threshold = (int) (255 * 0.30);
                 Bitmap res = TextRecognizer.prepareImageForOcr(src, threshold);
-                TextRecognizer.CheckData checkData = TextRecognizer.recognize(getApplicationContext(), res,true);
+                TextRecognizer.CheckData checkData = TextRecognizer.recognize(getApplicationContext(), res,true, 0, 0);
 
                 showResults(src, checkData);
+
 //            } catch (IOException ex) {
 //                return;
 //            }

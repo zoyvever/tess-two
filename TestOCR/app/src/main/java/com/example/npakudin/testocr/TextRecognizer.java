@@ -7,11 +7,10 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.support.annotation.BoolRes;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
-import android.util.SparseIntArray;
-
 import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
 import com.googlecode.leptonica.android.ReadFile;
@@ -45,16 +44,9 @@ public class TextRecognizer {
         }
     }
 
-    public static CheckData recognize(Context context, Bitmap bm, boolean isFirstIter) {
+    public static CheckData recognize(Context context, Bitmap bm, boolean isFirstIter, int trueTop, int trueBottom) {
         try {
-
-            initTessBaseApi(context);
-            baseApi.setImage(bm);
-//            set recognition rect
-//            Rect ligature = new Rect(3,trueTop,0, trueBottom);
-//            baseApi.setRectangle(ligature);
-            String recognizedText = baseApi.getUTF8Text();
-            Log.w(LOGTAG, "recognizedText: " + recognizedText);
+            String recognizedText= setTess(context, bm, isFirstIter, trueTop, trueBottom);
             float scale = context.getResources().getDisplayMetrics().density;
 
             List<String> parsed = new ArrayList<String>();
@@ -63,7 +55,6 @@ public class TextRecognizer {
                 List<Symbol> symbols = new ArrayList();
                 HashMap <Integer,Integer> bottom = new HashMap<>();
                 HashMap <Integer,Integer> top = new HashMap<>();
-
 
                 ResultIterator resultIterator = baseApi.getResultIterator();
                 do {
@@ -80,7 +71,7 @@ public class TextRecognizer {
                         //which was recognized with more than 70% of confidence.
                         if (symbol.confidence >70 && isFirstIter) {
                             bottom=fillTheMap(bottom, symbol.rect.bottom);
-                            top= fillTheMap(top, symbol.rect.top);
+                            top = fillTheMap(top, symbol.rect.top);
                         }
                     }
                     symbols.add(symbol);
@@ -89,62 +80,19 @@ public class TextRecognizer {
                 //on this croped image
                 if (isFirstIter) {
 
-                    int trueTop=findMaxFrequency(top);
-                    int trueBottom=findMaxFrequency(bottom);
-                    Bitmap trueBm= Bitmap.createBitmap(bm, 0, trueTop, bm.getWidth(), trueBottom-trueTop);
-                    TextRecognizer.recognize(context, trueBm, false);
-                    CheckData checkData = new CheckData();
-                    checkData.accountNumber = parsed.size() > 0 ? parsed.get(0) : "UNRECOGNIZED";
-                    checkData.routingNumber = parsed.size() > 1 ? parsed.get(1) : "UNRECOGNIZED";
-                    checkData.checkNumber   = parsed.size() > 2 ? parsed.get(2) : "UNRECOGNIZED";
-                    checkData.res=trueBm;
+                   trueTop=findMaxFrequency(top);
+                   trueBottom=findMaxFrequency(bottom);
+//                    Bitmap trueBm= Bitmap.createBitmap(bm, 0, trueTop, bm.getWidth(), trueBottom-trueTop);
+                    CheckData checkData=TextRecognizer.recognize(context, bm, false, trueTop, trueBottom);
 
                     return checkData;
                 }
                 else {
-                    Canvas canvas = new Canvas(bm);
-                    float prevRight = 0;
-                    float prevBottom = 0;
-                    Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                    textPaint.setColor(Color.rgb(0xff, 0, 0));
-
-                    for (Symbol symbol : symbols) {
-
-                        for (int i = 0; i < symbol.choicesAndConf.size(); i++) {
-
-                            textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
-//                        textPaint.setShadowLayer(1f, 0f, 1f, Color.BLUE);
-
-                            canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
-
-
-                            String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
-                            double confColor = 255 - (symbol.confidence.doubleValue() * 3);
-                            Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol " + symbol.choicesAndConf.get(i).first + "; top " + symbol.rect.top);
-
-                            Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                            confPaint.setColor(Color.rgb(0, 0, (int) confColor));
-                            confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
-                            confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
-
-                            canvas.drawText(conf, symbol.rect.left, symbol.rect.top - 120 - 200 * i, confPaint);
-                        }
-
-                        Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                        borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
-
-                        if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
-                            // new line
-                            prevRight = 0;
-                        }
-                        canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
-                        prevRight = symbol.rect.right;
-                        prevBottom = symbol.rect.bottom;
-                    }
+                    DrowRecText(bm,scale, symbols);
                 }
             }
-            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            borderRectPaint.setColor(Color.rgb(0, 0xff, 0xff));
+//            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+//            borderRectPaint.setColor(Color.rgb(0, 0xff, 0xff));
             //canvas.drawRect(ligature, borderRectPaint);
 
 
@@ -170,6 +118,62 @@ public class TextRecognizer {
         return trueBorder;
     }
 
+    public static CheckData DrowRecText(Bitmap bm, Float scale, List<Symbol> symbols){
+        Canvas canvas = new Canvas(bm);
+        float prevRight = 0;
+        float prevBottom = 0;
+        Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        textPaint.setColor(Color.rgb(0xff, 0, 0));
+
+        for (Symbol symbol : symbols) {
+
+            for (int i = 0; i < symbol.choicesAndConf.size(); i++) {
+
+                textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
+//                        textPaint.setShadowLayer(1f, 0f, 1f, Color.BLUE);
+
+                canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
+
+
+                String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
+                double confColor = 255 - (symbol.confidence.doubleValue() * 3);
+                Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol " + symbol.choicesAndConf.get(i).first + "; top " + symbol.rect.top);
+
+                Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                confPaint.setColor(Color.rgb(0, 0, (int) confColor));
+                confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
+                confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
+
+                canvas.drawText(conf, symbol.rect.left, symbol.rect.top - 120 - 200 * i, confPaint);
+            }
+
+            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
+
+            if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
+                // new line
+                prevRight = 0;
+            }
+            canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
+            prevRight = symbol.rect.right;
+            prevBottom = symbol.rect.bottom;
+        }
+        CheckData checkData = new CheckData();
+        checkData.res=bm;
+        return checkData;
+    }
+
+    public static String setTess(Context context, Bitmap bm, Boolean isFirstIter, int trueTop, int trueBottom){
+        initTessBaseApi(context);
+        baseApi.setImage(bm);
+        if (!isFirstIter) {
+//            set recognition rect
+            Rect ligature = new Rect(10,trueTop,bm.getWidth(), trueBottom);
+            baseApi.setRectangle(ligature);
+            baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_LINE);
+        }
+        return  baseApi.getUTF8Text();
+    }
 
     public static HashMap<Integer, Integer> fillTheMap(HashMap<Integer,Integer> map, Integer rect){
     if (map.get(rect)!=null) {
@@ -178,7 +182,6 @@ public class TextRecognizer {
     else {
         map.put(rect, 1);
     }
-        Log.d("fillmap", map.keySet().toString());
         return map;
 }
 
