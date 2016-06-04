@@ -32,30 +32,52 @@ import java.util.Locale;
 public class TextRecognizer {
 
     private static final String LOGTAG = "TextRecognizer";
-
-
     private static TessBaseAPI baseApi = null;
-    private static void initTessBaseApi(Context context){
+
+    private static String initTessBaseApi(Context context,Bitmap bm, int topBorder, int bottomBorder){
         if (baseApi == null) {
             File baseDir = createMicrTessData(context);
 
             baseApi = new TessBaseAPI();
             baseApi.init(baseDir.getAbsolutePath(), "mcr");
         }
+        baseApi.setImage(bm);
+        Rect ligature = new Rect(10,topBorder,bm.getWidth(), bottomBorder);
+        baseApi.setRectangle(ligature);
+        baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_LINE);
+        return  baseApi.getUTF8Text();
     }
 
-    public static CheckData recognize(Context context, Bitmap bm, boolean isFirstIter, int trueTop, int trueBottom) {
-        try {
-            String recognizedText= setTess(context, bm, isFirstIter, trueTop, trueBottom);
-            float scale = context.getResources().getDisplayMetrics().density;
+    public static int[] findRect(Context context, Bitmap bm, int topBorder, int bottomBorder){
+        String recognizedText= initTessBaseApi(context, bm, topBorder, bottomBorder);
+        int[] borders= new int [2];
+        if (recognizedText.trim().length() > 0) {
+            HashMap<Integer, Integer> bottom = new HashMap<>();
+            HashMap<Integer, Integer> top = new HashMap<>();
+            ResultIterator resultIterator = baseApi.getResultIterator();
 
-            List<String> parsed = new ArrayList<String>();
+            do {
+                Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
+                    if (item.second> 70) {
+                        bottom = fillTheMap(bottom, rect.bottom);
+                        top = fillTheMap(top, rect.top);
+                    }
+                }
+            } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
+
+            borders[0]=findMaxFrequency(top);
+            borders[1]= findMaxFrequency(bottom);
+        }
+        return borders;
+    }
+
+    public static CheckData recognize(Context context, Bitmap bm, int trueTop, int trueBottom) {
+        try {
+            String recognizedText= initTessBaseApi(context, bm, trueTop, trueBottom);
             if (recognizedText.trim().length() > 0) {
 
                 List<Symbol> symbols = new ArrayList();
-                HashMap <Integer,Integer> bottom = new HashMap<>();
-                HashMap <Integer,Integer> top = new HashMap<>();
-
                 ResultIterator resultIterator = baseApi.getResultIterator();
                 do {
                     Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
@@ -67,35 +89,20 @@ public class TextRecognizer {
                         symbol.confidence = item.second;
                         symbol.choicesAndConf = choicesAndConf;
                         symbol.rect = rect;
-                        //in first iteration fill the SpraseArray with all tops and bottoms of rect of symbols
-                        //which was recognized with more than 70% of confidence.
-                        if (symbol.confidence >70 && isFirstIter) {
-                            bottom=fillTheMap(bottom, symbol.rect.bottom);
-                            top = fillTheMap(top, symbol.rect.top);
-                        }
+                        symbols.add(symbol);
                     }
-                    symbols.add(symbol);
                 } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
-                //Finding top and bottom to crop the image, croping and calling the recognize method again
-                //on this croped image
-                if (isFirstIter) {
 
-                   trueTop=findMaxFrequency(top);
-                   trueBottom=findMaxFrequency(bottom);
-//                    Bitmap trueBm= Bitmap.createBitmap(bm, 0, trueTop, bm.getWidth(), trueBottom-trueTop);
-                    CheckData checkData=TextRecognizer.recognize(context, bm, false, trueTop, trueBottom);
+                CheckData checkData= new CheckData();
+                checkData.res=bm;
+                checkData.wholeText=recognizedText;
+                checkData.symbols=symbols;
+                return checkData;
 
-                    return checkData;
-                }
-                else {
-                    DrowRecText(bm,scale, symbols);
-                }
             }
 //            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 //            borderRectPaint.setColor(Color.rgb(0, 0xff, 0xff));
             //canvas.drawRect(ligature, borderRectPaint);
-
-
         } catch (Exception e) {
             Log.w(LOGTAG, "onCreate", e);
             return null;
@@ -118,7 +125,7 @@ public class TextRecognizer {
         return trueBorder;
     }
 
-    public static CheckData DrowRecText(Bitmap bm, Float scale, List<Symbol> symbols){
+    public static Bitmap drowRecText(Bitmap bm, Float scale, List<Symbol> symbols){
         Canvas canvas = new Canvas(bm);
         float prevRight = 0;
         float prevBottom = 0;
@@ -158,22 +165,10 @@ public class TextRecognizer {
             prevRight = symbol.rect.right;
             prevBottom = symbol.rect.bottom;
         }
-        CheckData checkData = new CheckData();
-        checkData.res=bm;
-        return checkData;
+
+        return bm;
     }
 
-    public static String setTess(Context context, Bitmap bm, Boolean isFirstIter, int trueTop, int trueBottom){
-        initTessBaseApi(context);
-        baseApi.setImage(bm);
-        if (!isFirstIter) {
-//            set recognition rect
-            Rect ligature = new Rect(10,trueTop,bm.getWidth(), trueBottom);
-            baseApi.setRectangle(ligature);
-            baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_LINE);
-        }
-        return  baseApi.getUTF8Text();
-    }
 
     public static HashMap<Integer, Integer> fillTheMap(HashMap<Integer,Integer> map, Integer rect){
     if (map.get(rect)!=null) {
@@ -195,7 +190,7 @@ public class TextRecognizer {
 
 
     @NonNull
-    public static Bitmap prepareImageForOcr(Bitmap bm, int threshold) {
+    public static Bitmap prepareImageForOcr(Bitmap bm) {
         //binarize and find skew
         Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
                 3000, 3000,
@@ -285,13 +280,9 @@ public class TextRecognizer {
 
     public static class CheckData {
 
-        public String routingNumber="";
-        public String accountNumber="";
-        public String checkNumber="";
         public Bitmap res;
+        public String wholeText="";
+        public List<Symbol> symbols;
 
-        public Bitmap getBitmap(){
-            return res;
-        }
     }
 }

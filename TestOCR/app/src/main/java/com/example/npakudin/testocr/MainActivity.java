@@ -1,14 +1,10 @@
 package com.example.npakudin.testocr;
 
-import android.app.AlertDialog;
+
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
-import android.graphics.Rect;
-import android.graphics.drawable.Drawable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -16,7 +12,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -62,31 +57,41 @@ public class MainActivity extends AppCompatActivity {
     private void recognize() {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inMutable = true;
-//        AssetManager assetManager = getApplicationContext().getAssets();
-//        try{
-//              Bitmap src = BitmapFactory.decodeStream(assetManager.open("img/a271071321ac9080054103c0903"));
-///             InputStream ims = getAssets().open(files[i].getName());
-//              Bitmap src = BitmapFactory.decodeStream(ims);
-                Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.b, options);
-                int threshold = (int) (255 * 0.30);
-                Bitmap res = TextRecognizer.prepareImageForOcr(src, threshold);
-                TextRecognizer.CheckData checkData = TextRecognizer.recognize(getApplicationContext(), res,true, 0, 0);
+        Context context=getApplicationContext();
+        float scale = context.getResources().getDisplayMetrics().density;
 
-                showResults(src, checkData);
+        AssetManager assetManager = getApplicationContext().getAssets();
+        InputStream istr;
+        try {
+            String[] list=getAssets().list("img");
+            for (String file : list) {
+                Log.d("asset", file);
+                istr = assetManager.open("img/"+file);
+                Bitmap src = BitmapFactory.decodeStream(istr);
+                Bitmap res = TextRecognizer.prepareImageForOcr(src);
+                int[] borders=TextRecognizer.findRect(context, res,0, res.getHeight());
 
-//            } catch (IOException ex) {
-//                return;
-//            }
-//        }
+                TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, borders[0], borders[1]);
+                res=TextRecognizer.drowRecText(checkData.res,scale, checkData.symbols);
+                showResults(src, res, checkData);
+            }
+        } catch (IOException e) {
+            Log.d("exc", "exc");
+        }
+//        Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.b, options);
+//        Bitmap res = TextRecognizer.prepareImageForOcr(src);
+//        TextRecognizer.CheckData checkData = TextRecognizer.recognize(getApplicationContext(), res,true, 0, 0);//
     }
 
-    private void showResults(Bitmap src, final TextRecognizer.CheckData checkData) {
+    private void showResults(Bitmap src, Bitmap res, final TextRecognizer.CheckData checkData) {
 
-        String message = String.format("Routing Number: %s\nAccount Number: %s\nCheck Number: %s",
-                checkData.routingNumber, checkData.accountNumber, checkData.checkNumber);
+//        String message = String.format("Routing Number: %s\nAccount Number: %s\nCheck Number: %s",
+//                checkData.routingNumber, checkData.accountNumber, checkData.checkNumber);
+        String message = String.format("Number: %s", checkData.wholeText);
+        Log.d("rectext", checkData.wholeText);
 
         imageViewSrc.setImageBitmap(src);
-        imageViewRes.setImageBitmap(checkData.getBitmap());
+        imageViewRes.setImageBitmap(res);
         textViewRes.setText(message);
     }
 
