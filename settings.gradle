@@ -1,3 +1,0 @@
-include ':eyes-two', ':micrtes'
-include ':tess-two'
-include ':tess-two-test'
