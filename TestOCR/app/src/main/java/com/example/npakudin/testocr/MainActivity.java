@@ -70,6 +70,9 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap src = BitmapFactory.decodeStream(istr);
                 Bitmap res = TextRecognizer.prepareImageForOcr(src);
                 int[] borders=TextRecognizer.findRect(context, res,0, res.getHeight());
+                if (borders[0] == borders[1]) {
+                    continue;
+                }
 
                 TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, borders[0], borders[1]);
                 res=TextRecognizer.drawRecText(checkData.res,scale, checkData.symbols);
