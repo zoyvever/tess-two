@@ -42,8 +42,8 @@ public class TextRecognizer {
             baseApi.init(baseDir.getAbsolutePath(), "mcr");
         }
         baseApi.setImage(bm);
-        Rect ligature = new Rect(10,topBorder,bm.getWidth(), bottomBorder);
-        baseApi.setRectangle(ligature);
+        Rect rect= new Rect(10,topBorder,bm.getWidth(), bottomBorder);
+        baseApi.setRectangle(rect);
         baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_LINE);
         return  baseApi.getUTF8Text();
     }
@@ -66,8 +66,8 @@ public class TextRecognizer {
                 }
             } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
 
-            borders[0]=findMaxFrequency(top);
-            borders[1]= findMaxFrequency(bottom);
+            borders[0]=findMostFrequentItem(top);
+            borders[1]= findMostFrequentItem(bottom);
         }
         return borders;
     }
@@ -112,7 +112,7 @@ public class TextRecognizer {
         return checkData;
     }
 
-    public static int findMaxFrequency(HashMap <Integer,Integer> map){
+    public static int findMostFrequentItem(HashMap <Integer,Integer> map){
         int trueBorder=0;
         int freq=0;
         for (HashMap.Entry<Integer, Integer> entry : map.entrySet())
@@ -125,7 +125,7 @@ public class TextRecognizer {
         return trueBorder;
     }
 
-    public static Bitmap drowRecText(Bitmap bm, Float scale, List<Symbol> symbols){
+    public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols){
         Canvas canvas = new Canvas(bm);
         float prevRight = 0;
         float prevBottom = 0;

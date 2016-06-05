@@ -21,7 +21,7 @@ import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "MainActiity";
+    private static final String TAG = "MainActivity";
     Button button;
     ImageView imageViewSrc;
     ImageView imageViewRes;
@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
                 int[] borders=TextRecognizer.findRect(context, res,0, res.getHeight());
 
                 TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, borders[0], borders[1]);
-                res=TextRecognizer.drowRecText(checkData.res,scale, checkData.symbols);
+                res=TextRecognizer.drawRecText(checkData.res,scale, checkData.symbols);
                 showResults(src, res, checkData);
             }
         } catch (IOException e) {
