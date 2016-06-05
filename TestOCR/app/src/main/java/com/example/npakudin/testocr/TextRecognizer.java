@@ -74,6 +74,10 @@ public class TextRecognizer {
 
     public static CheckData recognize(Context context, Bitmap bm, int trueTop, int trueBottom) {
         try {
+            if (trueBottom == trueTop) {
+                return new CheckData(bm, "", new ArrayList<TextRecognizer.Symbol>());
+            }
+
             String recognizedText= initTessBaseApi(context, bm, trueTop, trueBottom);
             if (recognizedText.trim().length() > 0) {
 
@@ -93,11 +97,7 @@ public class TextRecognizer {
                     }
                 } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
 
-                CheckData checkData= new CheckData();
-                checkData.res=bm;
-                checkData.wholeText=recognizedText;
-                checkData.symbols=symbols;
-                return checkData;
+                return new CheckData(bm, recognizedText, symbols);
 
             }
 //            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -107,9 +107,7 @@ public class TextRecognizer {
             Log.w(LOGTAG, "onCreate", e);
             return null;
         }
-        CheckData checkData = new CheckData();
-        checkData.res=bm;
-        return checkData;
+        return new CheckData(bm, "", null);
     }
 
     public static int findMostFrequentItem(HashMap <Integer,Integer> map){
@@ -284,5 +282,10 @@ public class TextRecognizer {
         public String wholeText="";
         public List<Symbol> symbols;
 
+        public CheckData(Bitmap res, String wholeText, List<Symbol> symbols) {
+            this.res = res;
+            this.wholeText = wholeText;
+            this.symbols = symbols;
+        }
     }
 }
