@@ -37,8 +37,6 @@ public class MainActivity extends AppCompatActivity {
         imageViewSrc = (ImageView) findViewById(R.id.imageViewSrc);
         imageViewRes = (ImageView) findViewById(R.id.imageViewRes);
         textViewRes = (TextView) findViewById(R.id.textViewRes);
-        int i =0;
-
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -70,9 +68,19 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap src = BitmapFactory.decodeStream(istr);
                 Bitmap res = TextRecognizer.prepareImageForOcr(src);
                 int[] borders=TextRecognizer.findRect(context, res,0, res.getHeight());
-
                 TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, borders[0], borders[1]);
+                Log.d(TAG, "some");
                 res=TextRecognizer.drawRecText(checkData.res,scale, checkData.symbols);
+
+                Log.d(TAG,"file: "+file+"; recognized: "+ checkData.wholeText);
+                char[] recognizedTextChars= checkData.wholeText.toCharArray();
+                char[] fileNameChars = file.toCharArray();
+                int recognitionQuality=0;
+                for (int i = 0; i<fileNameChars.length-4; i++){
+//
+                }
+                Log.d("quality", ""+(100.0*recognitionQuality)/recognizedTextChars.length);
+
                 showResults(src, res, checkData);
             }
         } catch (IOException e) {

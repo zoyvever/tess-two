@@ -44,12 +44,13 @@ public class TextRecognizer {
         baseApi.setImage(bm);
         Rect rect= new Rect(10,topBorder,bm.getWidth(), bottomBorder);
         baseApi.setRectangle(rect);
-        baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_LINE);
+//        baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_LINE);
         return  baseApi.getUTF8Text();
     }
 
     public static int[] findRect(Context context, Bitmap bm, int topBorder, int bottomBorder){
         String recognizedText= initTessBaseApi(context, bm, topBorder, bottomBorder);
+        Log.d("rec1", recognizedText);
         int[] borders= new int [2];
         if (recognizedText.trim().length() > 0) {
             HashMap<Integer, Integer> bottom = new HashMap<>();
@@ -61,7 +62,9 @@ public class TextRecognizer {
                 for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
                     if (item.second> 70) {
                         bottom = fillTheMap(bottom, rect.bottom);
+                        Log.d("bottom", ""+rect.bottom);
                         top = fillTheMap(top, rect.top);
+                        Log.d("top", ""+rect.top);
                     }
                 }
             } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
@@ -69,16 +72,21 @@ public class TextRecognizer {
             borders[0]=findMostFrequentItem(top);
             borders[1]= findMostFrequentItem(bottom);
         }
+        Log.d(LOGTAG, "top: "+ borders[0]+", bottom:"+borders[1]);
         return borders;
     }
 
     public static CheckData recognize(Context context, Bitmap bm, int trueTop, int trueBottom) {
+        Log.d(LOGTAG,"a");
         try {
+            Log.d(LOGTAG,"try");
             if (trueBottom == trueTop) {
+                Log.d(LOGTAG,"try1");
                 return new CheckData(bm, "", new ArrayList<TextRecognizer.Symbol>());
             }
-
+            Log.d(LOGTAG,"b");
             String recognizedText= initTessBaseApi(context, bm, trueTop, trueBottom);
+            Log.d(LOGTAG,"c");
             if (recognizedText.trim().length() > 0) {
 
                 List<Symbol> symbols = new ArrayList();
@@ -99,6 +107,9 @@ public class TextRecognizer {
 
                 return new CheckData(bm, recognizedText, symbols);
 
+            }
+            else {
+                Log.d(LOGTAG, "text =0");
             }
 //            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 //            borderRectPaint.setColor(Color.rgb(0, 0xff, 0xff));
@@ -142,7 +153,7 @@ public class TextRecognizer {
 
                 String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
                 double confColor = 255 - (symbol.confidence.doubleValue() * 3);
-                Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol " + symbol.choicesAndConf.get(i).first + "; top " + symbol.rect.top);
+//                Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol " + symbol.choicesAndConf.get(i).first + "; top " + symbol.rect.top);
 
                 Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
                 confPaint.setColor(Color.rgb(0, 0, (int) confColor));
@@ -284,7 +295,7 @@ public class TextRecognizer {
 
         public CheckData(Bitmap res, String wholeText, List<Symbol> symbols) {
             this.res = res;
-            this.wholeText = wholeText;
+            this.wholeText = wholeText.replaceAll("\\s","");
             this.symbols = symbols;
         }
     }
