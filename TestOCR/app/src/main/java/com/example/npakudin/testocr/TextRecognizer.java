@@ -34,7 +34,7 @@ public class TextRecognizer {
     private static final String LOGTAG = "TextRecognizer";
     private static TessBaseAPI baseApi = null;
 
-    private static String initTessBaseApi(Context context,Bitmap bm, int topBorder, int bottomBorder){
+    private static String initTessBaseApi(Context context,Bitmap bm, Rect rect){
         if (baseApi == null) {
             File baseDir = createMicrTessData(context);
 
@@ -42,16 +42,14 @@ public class TextRecognizer {
             baseApi.init(baseDir.getAbsolutePath(), "mcr");
         }
         baseApi.setImage(bm);
-        Rect rect= new Rect(10,topBorder,bm.getWidth(), bottomBorder);
         baseApi.setRectangle(rect);
 //        baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_LINE);
         return  baseApi.getUTF8Text();
     }
 
-    public static int[] findRect(Context context, Bitmap bm, int topBorder, int bottomBorder){
-        String recognizedText= initTessBaseApi(context, bm, topBorder, bottomBorder);
+    public static Rect findRect(Context context, Bitmap bm, Rect micrRect){
+        String recognizedText= initTessBaseApi(context, bm, micrRect);
         Log.d("rec1", recognizedText);
-        int[] borders= new int [2];
         if (recognizedText.trim().length() > 0) {
             HashMap<Integer, Integer> bottom = new HashMap<>();
             HashMap<Integer, Integer> top = new HashMap<>();
@@ -62,31 +60,22 @@ public class TextRecognizer {
                 for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
                     if (item.second> 70) {
                         bottom = fillTheMap(bottom, rect.bottom);
-                        Log.d("bottom", ""+rect.bottom);
                         top = fillTheMap(top, rect.top);
-                        Log.d("top", ""+rect.top);
                     }
                 }
             } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
-
-            borders[0]=findMostFrequentItem(top);
-            borders[1]= findMostFrequentItem(bottom);
+            micrRect.top=findMostFrequentItem(top);
+            micrRect.bottom=findMostFrequentItem(bottom);
         }
-        Log.d(LOGTAG, "top: "+ borders[0]+", bottom:"+borders[1]);
-        return borders;
+        return micrRect;
     }
 
-    public static CheckData recognize(Context context, Bitmap bm, int trueTop, int trueBottom) {
-        Log.d(LOGTAG,"a");
+    public static CheckData recognize(Context context, Bitmap bm, Rect micrRect) {
         try {
-            Log.d(LOGTAG,"try");
-            if (trueBottom == trueTop) {
-                Log.d(LOGTAG,"try1");
+            if (micrRect.bottom == micrRect.top) {
                 return new CheckData(bm, "", new ArrayList<TextRecognizer.Symbol>());
             }
-            Log.d(LOGTAG,"b");
-            String recognizedText= initTessBaseApi(context, bm, trueTop, trueBottom);
-            Log.d(LOGTAG,"c");
+            String recognizedText= initTessBaseApi(context, bm, micrRect);
             if (recognizedText.trim().length() > 0) {
 
                 List<Symbol> symbols = new ArrayList();
