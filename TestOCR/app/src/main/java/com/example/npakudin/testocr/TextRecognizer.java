@@ -43,7 +43,6 @@ public class TextRecognizer {
         }
         baseApi.setImage(bm);
         baseApi.setRectangle(rect);
-//        baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_LINE);
         return  baseApi.getUTF8Text();
     }
 
@@ -64,7 +63,10 @@ public class TextRecognizer {
                     }
                 }
             } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
+//            int pogr= (int) (long) (0.2*(findMostFrequentItem(bottom))-findMostFrequentItem(top));
+//            micrRect.top=findMostFrequentItem(top)-pogr;
             micrRect.top=findMostFrequentItem(top);
+//            micrRect.bottom=findMostFrequentItem(bottom)+pogr;
             micrRect.bottom=findMostFrequentItem(bottom);
         }
         return micrRect;
@@ -100,9 +102,7 @@ public class TextRecognizer {
             else {
                 Log.d(LOGTAG, "text =0");
             }
-//            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-//            borderRectPaint.setColor(Color.rgb(0, 0xff, 0xff));
-            //canvas.drawRect(ligature, borderRectPaint);
+
         } catch (Exception e) {
             Log.w(LOGTAG, "onCreate", e);
             return null;
@@ -135,14 +135,14 @@ public class TextRecognizer {
             for (int i = 0; i < symbol.choicesAndConf.size(); i++) {
 
                 textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
-//                        textPaint.setShadowLayer(1f, 0f, 1f, Color.BLUE);
+
 
                 canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
 
 
                 String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
                 double confColor = 255 - (symbol.confidence.doubleValue() * 3);
-//                Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol " + symbol.choicesAndConf.get(i).first + "; top " + symbol.rect.top);
+                Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol " + symbol.choicesAndConf.get(i).first + "; left" + symbol.rect.left);
 
                 Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
                 confPaint.setColor(Color.rgb(0, 0, (int) confColor));

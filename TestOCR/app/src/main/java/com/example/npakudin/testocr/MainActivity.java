@@ -13,6 +13,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -38,16 +39,20 @@ public class MainActivity extends AppCompatActivity {
         imageViewSrc = (ImageView) findViewById(R.id.imageViewSrc);
         imageViewRes = (ImageView) findViewById(R.id.imageViewRes);
         textViewRes = (TextView) findViewById(R.id.textViewRes);
+
+
+
         button.setOnClickListener(new View.OnClickListener() {
+//            Integer i=0;
             @Override
             public void onClick(View v) {
-
                 recognize();
+//                i++;
+
             }
         });
     }
-
-    @Override
+@Override
     protected void onResume() {
         super.onResume();
         recognize();
@@ -56,50 +61,45 @@ public class MainActivity extends AppCompatActivity {
     private void recognize() {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inMutable = true;
-        Context context=getApplicationContext();
+        Context context = getApplicationContext();
         float scale = context.getResources().getDisplayMetrics().density;
-        double qualityOfAll=0;
+        double successfullyRecognized = 0;
         AssetManager assetManager = getApplicationContext().getAssets();
         InputStream istr;
         try {
-            String[] list=getAssets().list("img");
+            String[] list = getAssets().list("img");
             for (String file : list) {
+//            String file =list[i];
                 Log.d(TAG, file);
-                istr = assetManager.open("img/"+file);
+                istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
                 Bitmap res = TextRecognizer.prepareImageForOcr(src);
-                Rect micrRect= new Rect(10,0,res.getWidth(), res.getHeight());
-                micrRect=TextRecognizer.findRect(context, res, micrRect);
+                Rect micrRect = new Rect(0, 0, res.getWidth(), res.getHeight());
+                micrRect = TextRecognizer.findRect(context, res, micrRect);
                 TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, micrRect);
-                res=TextRecognizer.drawRecText(checkData.res,scale, checkData.symbols);
+                res = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols);
 
-                Log.d(TAG,"file: "+file+"; recognized: "+ checkData.wholeText);
-                char[] recognizedTextChars= checkData.wholeText.toCharArray();
-                char[] fileNameChars = file.toCharArray();
-                double recognitionOfOne=100.0*fileNameChars.length/(recognizedTextChars.length+
-                                levenshteinDistance(recognizedTextChars,fileNameChars));
-                Log.d("recOne", "Recognized "+recognitionOfOne+"% of "+file+"; text: "+checkData.wholeText);
-                if (recognitionOfOne==100.0){
-                    qualityOfAll++;
+                Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
+
+                double itemRecognition = 100.0 * file.length() / (checkData.wholeText.length() +
+                        levenshteinDistance(checkData.wholeText, file));
+                Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData.wholeText);
+
+                if (itemRecognition == 100.0) {
+                    successfullyRecognized++;
                 }
 
-                showResults(src, res, checkData);
+                showResults(src, res, checkData, itemRecognition);
             }
-            Log.d("total: ", ""+qualityOfAll/list.length);
+            Log.d("total: ", "" + successfullyRecognized / list.length);
         } catch (IOException e) {
-            Log.d(TAG, "exc");
+            Log.e(TAG, e.toString());
         }
-
-//        Bitmap src = BitmapFactory.decodeResource(getResources(), R.drawable.b, options);
-//        Bitmap res = TextRecognizer.prepareImageForOcr(src);
-//        TextRecognizer.CheckData checkData = TextRecognizer.recognize(getApplicationContext(), res,true, 0, 0);//
     }
 
-    private void showResults(Bitmap src, Bitmap res, final TextRecognizer.CheckData checkData) {
+    private void showResults(Bitmap src, Bitmap res, final TextRecognizer.CheckData checkData, Double itemRecognition) {
 
-//        String message = String.format("Routing Number: %s\nAccount Number: %s\nCheck Number: %s",
-//                checkData.routingNumber, checkData.accountNumber, checkData.checkNumber);
-        String message = String.format("Number: %s", checkData.wholeText);
+        String message = String.format("Number: %s, %n prc: %s" , checkData.wholeText, itemRecognition );
         Log.d("rectext", checkData.wholeText);
 
         imageViewSrc.setImageBitmap(src);
@@ -109,17 +109,13 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean saveBitmap(Bitmap bm, String nameSuffix) {
         try {
-            //make a new picture file
             File pictureFile = getOutputMediaFile(nameSuffix);
 
             if (pictureFile == null) {
                 return true;
             }
-
-            //write the file
             FileOutputStream fos = new FileOutputStream(pictureFile);
             bm.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-            //fos.write(data);
             fos.close();
         } catch (Exception e) {
             Log.e(TAG, "Cannot save pic", e);
@@ -127,65 +123,45 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    //make picture and save to a folder
     private static File getOutputMediaFile(String nameSuffix) {
-        //make a new file directory inside the "sdcard" folder
         File mediaStorageDir = new File("/sdcard/", "POS checks");
 
-        //if this "JCGCamera folder does not exist
         if (!mediaStorageDir.exists()) {
-            //if you cannot make this folder return
             if (!mediaStorageDir.mkdirs()) {
                 return null;
             }
         }
 
-        //take the current timeStamp
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File mediaFile;
-        //and make a media file:
         mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timeStamp + "_" + nameSuffix + ".jpg");
 
         return mediaFile;
     }
 
-    public int levenshteinDistance (char[] lhs, char[] rhs) {
+    public int levenshteinDistance(String recognizedText, String fileName) {
+        char[] lhs = recognizedText.toCharArray();
+        char[] rhs = fileName.toCharArray();
         int len0 = lhs.length + 1;
         int len1 = rhs.length + 1;
-
-        // the array of distances
         int[] cost = new int[len0];
         int[] newcost = new int[len0];
-
-        // initial cost of skipping prefix in String s0
         for (int i = 0; i < len0; i++) cost[i] = i;
-
-        // dynamically computing the array of distances
-
-        // transformation cost for each letter in s1
         for (int j = 1; j < len1; j++) {
-            // initial cost of skipping prefix in String s1
             newcost[0] = j;
 
-            // transformation cost for each letter in s0
-            for(int i = 1; i < len0; i++) {
-                // matching current letters in both strings
+            for (int i = 1; i < len0; i++) {
                 int match = (lhs[i - 1] == rhs[j - 1]) ? 0 : 1;
-
-                // computing cost for each transformation
                 int cost_replace = cost[i - 1] + match;
-                int cost_insert  = cost[i] + 1;
-                int cost_delete  = newcost[i - 1] + 1;
-
-                // keep minimum cost
+                int cost_insert = cost[i] + 1;
+                int cost_delete = newcost[i - 1] + 1;
                 newcost[i] = Math.min(Math.min(cost_insert, cost_delete), cost_replace);
             }
 
-            // swap cost/newcost arrays
-            int[] swap = cost; cost = newcost; newcost = swap;
+            int[] swap = cost;
+            cost = newcost;
+            newcost = swap;
         }
-
-        // the distance is the cost for transforming all letters in both strings
         return cost[len0 - 1];
     }
 }
