@@ -63,11 +63,10 @@ public class TextRecognizer {
                     }
                 }
             } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
-//            int pogr= (int) (long) (0.2*(findMostFrequentItem(bottom))-findMostFrequentItem(top));
-//            micrRect.top=findMostFrequentItem(top)-pogr;
-            micrRect.top=findMostFrequentItem(top);
-//            micrRect.bottom=findMostFrequentItem(bottom)+pogr;
-            micrRect.bottom=findMostFrequentItem(bottom);
+
+            int pogr= (int) (0.1*(findMostFrequentItem(bottom))-findMostFrequentItem(top));
+            micrRect.top=findMostFrequentItem(top)-pogr;
+            micrRect.bottom=findMostFrequentItem(bottom)+pogr;
         }
         return micrRect;
     }
@@ -141,15 +140,14 @@ public class TextRecognizer {
 
 
                 String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
-                double confColor = 255 - (symbol.confidence.doubleValue() * 3);
-                Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol " + symbol.choicesAndConf.get(i).first + "; left" + symbol.rect.left);
+//                Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol " + symbol.choicesAndConf.get(i).first + "; top " + symbol.rect.top);
 
                 Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                confPaint.setColor(Color.rgb(0, 0, (int) confColor));
+                confPaint.setColor(Color.rgb(0, 0, 255));
                 confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
                 confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
 
-                canvas.drawText(conf, symbol.rect.left, symbol.rect.top - 120 - 200 * i, confPaint);
+                canvas.drawText(conf, symbol.rect.left, symbol.rect.top - symbol.rect.height() * (i + 1), confPaint);
             }
 
             Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
