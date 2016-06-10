@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
                     holder = (ViewHolder) convertView.getTag();
                 }
                 holder.imageView().setImageBitmap(entities.get(position).res);
+                holder.textView().setText(entities.get(position).distance + "");
 
                 return convertView;
             }
@@ -65,17 +66,25 @@ public class MainActivity extends AppCompatActivity {
 
     public class ViewHolder {
         private View row;
-        private ImageView upperText;
+        private ImageView imageView;
+        private TextView textView;
 
         public ViewHolder(View row) {
             this.row = row;
         }
 
         public ImageView imageView() {
-            if (this.upperText == null) {
-                this.upperText = (ImageView) row.findViewById(R.id.imageView);
+            if (this.imageView == null) {
+                this.imageView = (ImageView) row.findViewById(R.id.imageView);
             }
-            return this.upperText;
+            return this.imageView;
+        }
+
+        public TextView textView() {
+            if (this.textView == null) {
+                this.textView = (TextView) row.findViewById(R.id.textView);
+            }
+            return this.textView;
         }
 
     }
@@ -132,6 +141,7 @@ public class MainActivity extends AppCompatActivity {
                 saveBitmap(checkData1.res, file.substring(0, file.length() - 4));
 
                 checkData1.realText = file.substring(0, file.length() - 5);
+                checkData1.distance = levenshteinDistance(checkData1.wholeText, checkData1.realText);
                 entities.add(checkData1);
             }
             Log.d("allPrc", ""+allPrc/list.length);
@@ -141,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
             for (TextRecognizer.CheckData item : entities) {
                 Log.d(TAG, "realText:   " + item.realText);
                 Log.d(TAG, "recognized: " + item.wholeText);
-                Log.d(TAG, "levenshteinDistance: " + levenshteinDistance(item.wholeText, item.realText));
+                Log.d(TAG, "levenshteinDistance: " + item.distance);
             }
         } catch (IOException e) {
             Log.e(TAG, e.toString());
