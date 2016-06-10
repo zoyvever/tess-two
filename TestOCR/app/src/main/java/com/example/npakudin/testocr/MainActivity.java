@@ -124,25 +124,26 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap res = TextRecognizer.prepareImageForOcr(src);
                 Rect micrRect = new Rect(0, 0, res.getWidth(), res.getHeight());
                 micrRect = TextRecognizer.findRect(context, res, micrRect);
+
                 TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, micrRect);
-                TextRecognizer.CheckData checkData1 = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols);
+                res = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols);
 
-                Log.d(TAG, "file: " + file + "; recognized: " + checkData1.wholeText);
+                Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 
-                double itemRecognition = 100.0 * file.length() / (checkData1.wholeText.length() +
-                        levenshteinDistance(checkData1.wholeText, file));
-                Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData1.wholeText);
+                double itemRecognition = 100.0 * file.length() / (checkData.wholeText.length() +
+                        levenshteinDistance(checkData.wholeText, file));
+                Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData.wholeText);
                 allPrc=allPrc+itemRecognition;
                 if (itemRecognition == 100.0) {
                     successfullyRecognized++;
                 }
-                showResults(src, res, checkData1, itemRecognition);
+                showResults(src, res, checkData, itemRecognition);
 
-                saveBitmap(checkData1.res, file.substring(0, file.length() - 4));
+                saveBitmap(checkData.res, file.substring(0, file.length() - 4));
 
-                checkData1.realText = file.substring(0, file.length() - 5);
-                checkData1.distance = levenshteinDistance(checkData1.wholeText, checkData1.realText);
-                entities.add(checkData1);
+                checkData.realText = file.substring(0, file.length() - 5);
+                checkData.distance = levenshteinDistance(checkData.wholeText, checkData.realText);
+                entities.add(checkData);
             }
             Log.d("allPrc", ""+allPrc/list.length);
             Log.d("total: ", "" + successfullyRecognized / list.length);

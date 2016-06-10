@@ -94,7 +94,7 @@ public class TextRecognizer {
                         symbols.add(symbol);
                     }
                 } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
-
+                Log.d("text1", recognizedText);
                 return new CheckData(bm, recognizedText, symbols);
 
             }
@@ -105,6 +105,7 @@ public class TextRecognizer {
         } catch (Exception e) {
             Log.w(LOGTAG, "onCreate", e);
             return null;
+
         }
         return new CheckData(bm, "", null);
     }
@@ -122,60 +123,63 @@ public class TextRecognizer {
         return trueBorder;
     }
 
-    public static CheckData drawRecText(Bitmap bm, Float scale, List<Symbol> symbols){
+    public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols){
         Canvas canvas = new Canvas(bm);
         float prevRight = 0;
         float prevBottom = 0;
-        int i=0;
         int left=0;
         String text="";
         Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         textPaint.setColor(Color.rgb(0xff, 0, 0));
 
         for (Symbol symbol : symbols) {
-            if (symbol.rect.left==left){
-                continue;
+            for (int i = 0; i < symbol.choicesAndConf.size(); i ++){
+                //            if (symbol.rect.left==left){
+                //                continue;
+                //            }
+                //            else {
+                //                left=symbol.rect.left;
+                //            }
+                //            if (symbol.choicesAndConf.size()>1 && symbol.choicesAndConf.get(0).second-symbol.choicesAndConf.get(1).second<4
+                //                    && symbol.choicesAndConf.get(1).first.matches("[a-c]")){
+                //                i=1;
+                //            }
+                //            else{
+                //                i=0;
+                //            }
+                textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
+
+                text = text + symbol.choicesAndConf.get(i).first;
+                canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
+
+
+                String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
+                Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol1 " + symbol.choicesAndConf.get(i).first +
+                        "; left " + symbol.rect.left + "; right" + symbol.rect.right+" widh "+(symbol.rect.right-symbol.rect.left));
+
+                Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                confPaint.setColor(Color.rgb(0, 0, 255));
+                confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
+                confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
+
+                canvas.drawText(conf, symbol.rect.left, symbol.rect.top - symbol.rect.height() * (i + 1), confPaint);
+
+                Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
+
+                if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
+                    // new line
+                    prevRight = 0;
+                }
+                canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
+                prevRight = symbol.rect.right;
+                prevBottom = symbol.rect.bottom;
             }
-            else {
-                left=symbol.rect.left;
-            }
-            if (symbol.choicesAndConf.size()>1 && symbol.choicesAndConf.get(0).second-symbol.choicesAndConf.get(1).second<4
-                    && symbol.choicesAndConf.get(1).first.matches("[a-c]")){
-                i=1;
-            }
-            else{
-                i=0;
-            }
-            textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
-
-            text=text+symbol.choicesAndConf.get(i).first;
-            canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
-
-
-            String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
-            Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol1 " + symbol.choicesAndConf.get(i).first + "; left " + symbol.rect.left);
-
-            Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            confPaint.setColor(Color.rgb(0, 0, 255));
-            confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
-            confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
-
-            canvas.drawText(conf, symbol.rect.left, symbol.rect.top - symbol.rect.height() * (i + 1), confPaint);
-
-            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
-
-            if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
-                // new line
-                prevRight = 0;
-            }
-            canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
-            prevRight = symbol.rect.right;
-            prevBottom = symbol.rect.bottom;
         }
-        CheckData checkData = new CheckData(bm, text, symbols);
-
-        return checkData;
+//        CheckData checkData = new CheckData(bm, text, symbols);
+//
+//        return checkData;
+    return bm;
     }
 
 
@@ -297,8 +301,7 @@ public class TextRecognizer {
 
         public CheckData(Bitmap res, String wholeText, List<Symbol> symbols) {
             this.res = res;
-            wholeText.replaceAll("^\\d | (\\d )?.$","");
-            this.wholeText = wholeText.replaceAll("\\s","");
+            this.wholeText = wholeText.replaceAll("^\\d | (\\d )?.$|\\s","");
 //            this.wholeText=wholeText;
             this.symbols = symbols;
         }
