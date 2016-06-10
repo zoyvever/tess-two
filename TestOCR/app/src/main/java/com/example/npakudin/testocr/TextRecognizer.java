@@ -289,6 +289,7 @@ public class TextRecognizer {
 
     public static class CheckData {
 
+        public String realText="";
         public Bitmap res;
         public String wholeText="";
         public List<Symbol> symbols;

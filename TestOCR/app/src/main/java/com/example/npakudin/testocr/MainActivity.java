@@ -6,57 +6,92 @@ import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Button;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
-    Button button;
-    ImageView imageViewSrc;
-    ImageView imageViewRes;
     TextView textViewRes;
+    ListView listView;
+    List<TextRecognizer.CheckData> entities = new ArrayList<>();
+    ArrayAdapter<TextRecognizer.CheckData> adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        button = (Button) findViewById(R.id.button);
-
-        imageViewSrc = (ImageView) findViewById(R.id.imageViewSrc);
-        imageViewRes = (ImageView) findViewById(R.id.imageViewRes);
         textViewRes = (TextView) findViewById(R.id.textViewRes);
+        listView = (ListView) findViewById(R.id.listview);
 
 
-
-        button.setOnClickListener(new View.OnClickListener() {
-            Integer i=0;
+        adapter = new ArrayAdapter<TextRecognizer.CheckData>(this, R.layout.list_item) {
             @Override
-            public void onClick(View v) {
+            public View getView(int position, View convertView, ViewGroup parent) {
+                ViewHolder holder = null;
+                LayoutInflater inflater = getLayoutInflater();
+                if (convertView == null) {
+                    convertView = inflater.inflate(R.layout.list_item, null, false);
+                    holder = new ViewHolder(convertView);
+                    convertView.setTag(holder);
+                }
+                else {
+                    holder = (ViewHolder) convertView.getTag();
+                }
+                holder.imageView().setImageBitmap(entities.get(position).res);
 
-                recognize();
-                i++;
-
+                return convertView;
             }
-        });
+        };
+
+        listView.setAdapter(adapter);
     }
-@Override
+
+    public class ViewHolder {
+        private View row;
+        private ImageView upperText;
+
+        public ViewHolder(View row) {
+            this.row = row;
+        }
+
+        public ImageView imageView() {
+            if (this.upperText == null) {
+                this.upperText = (ImageView) row.findViewById(R.id.imageView);
+            }
+            return this.upperText;
+        }
+
+    }
+
+    private boolean isRecognized = false;
+    @Override
     protected void onResume() {
         super.onResume();
-        recognize();
+
+        if (!isRecognized) {
+            recognize();
+            isRecognized = true;
+            adapter.clear();
+            adapter.addAll(entities);
+            adapter.notifyDataSetChanged();
+        }
     }
 
     private void recognize() {
@@ -69,6 +104,8 @@ public class MainActivity extends AppCompatActivity {
         AssetManager assetManager = getApplicationContext().getAssets();
         InputStream istr;
         try {
+
+
             String[] list = getAssets().list("img");
             for (String file : list) {
 //            String file =list[i];
@@ -91,9 +128,21 @@ public class MainActivity extends AppCompatActivity {
                     successfullyRecognized++;
                 }
                 showResults(src, res, checkData1, itemRecognition);
+
+                saveBitmap(checkData1.res, file.substring(0, file.length() - 4));
+
+                checkData1.realText = file.substring(0, file.length() - 5);
+                entities.add(checkData1);
             }
-                Log.d("allPrc", ""+allPrc/list.length);
+            Log.d("allPrc", ""+allPrc/list.length);
             Log.d("total: ", "" + successfullyRecognized / list.length);
+
+
+            for (TextRecognizer.CheckData item : entities) {
+                Log.d(TAG, "realText:   " + item.realText);
+                Log.d(TAG, "recognized: " + item.wholeText);
+                Log.d(TAG, "levenshteinDistance: " + levenshteinDistance(item.wholeText, item.realText));
+            }
         } catch (IOException e) {
             Log.e(TAG, e.toString());
         }
@@ -104,20 +153,20 @@ public class MainActivity extends AppCompatActivity {
         String message = String.format("Number: %s, %n prc: %s" , checkData.wholeText, itemRecognition );
         Log.d("rectext", checkData.wholeText);
 
-        imageViewSrc.setImageBitmap(src);
-        imageViewRes.setImageBitmap(res);
+//        imageViewSrc.setImageBitmap(src);
+//        imageViewRes.setImageBitmap(res);
         textViewRes.setText(message);
     }
 
-    private boolean saveBitmap(Bitmap bm, String nameSuffix) {
+    private boolean saveBitmap(Bitmap bm, String name) {
         try {
-            File pictureFile = getOutputMediaFile(nameSuffix);
+            File pictureFile = getOutputMediaFile(name + ".jpg");
 
             if (pictureFile == null) {
                 return true;
             }
             FileOutputStream fos = new FileOutputStream(pictureFile);
-            bm.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+            bm.compress(Bitmap.CompressFormat.JPEG, 90, fos);
             fos.close();
         } catch (Exception e) {
             Log.e(TAG, "Cannot save pic", e);
@@ -125,8 +174,8 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    private static File getOutputMediaFile(String nameSuffix) {
-        File mediaStorageDir = new File("/sdcard/", "POS checks");
+    private static File getOutputMediaFile(String name) {
+        File mediaStorageDir = new File("/sdcard/Pictures", "checks");
 
         if (!mediaStorageDir.exists()) {
             if (!mediaStorageDir.mkdirs()) {
@@ -134,9 +183,9 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        File mediaFile;
-        mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timeStamp + "_" + nameSuffix + ".jpg");
+//        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+//        File mediaFile;
+        File mediaFile = new File(mediaStorageDir.getPath() + File.separator + name);
 
         return mediaFile;
     }
