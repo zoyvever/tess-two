@@ -63,10 +63,10 @@ public class TextRecognizer {
                     }
                 }
             } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
-
-            int pogr= (int) (0.1*(findMostFrequentItem(bottom))-findMostFrequentItem(top));
-            micrRect.top=findMostFrequentItem(top)-pogr;
-            micrRect.bottom=findMostFrequentItem(bottom)+pogr;
+            int pogr= (int) (0.1*(findMostFrequentItem(top)-(findMostFrequentItem(bottom))));
+//            int pogr=0;
+            micrRect.top=findMostFrequentItem(top)+pogr;
+            micrRect.bottom=findMostFrequentItem(bottom)-pogr;
         }
         return micrRect;
     }
@@ -122,33 +122,45 @@ public class TextRecognizer {
         return trueBorder;
     }
 
-    public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols){
+    public static CheckData drawRecText(Bitmap bm, Float scale, List<Symbol> symbols){
         Canvas canvas = new Canvas(bm);
         float prevRight = 0;
         float prevBottom = 0;
+        int i=0;
+        int left=0;
+        String text="";
         Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         textPaint.setColor(Color.rgb(0xff, 0, 0));
 
         for (Symbol symbol : symbols) {
-
-            for (int i = 0; i < symbol.choicesAndConf.size(); i++) {
-
-                textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
-
-
-                canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
-
-
-                String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
-//                Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol " + symbol.choicesAndConf.get(i).first + "; top " + symbol.rect.top);
-
-                Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                confPaint.setColor(Color.rgb(0, 0, 255));
-                confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
-                confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
-
-                canvas.drawText(conf, symbol.rect.left, symbol.rect.top - symbol.rect.height() * (i + 1), confPaint);
+            if (symbol.rect.left==left){
+                continue;
             }
+            else {
+                left=symbol.rect.left;
+            }
+            if (symbol.choicesAndConf.size()>1 && symbol.choicesAndConf.get(0).second-symbol.choicesAndConf.get(1).second<4
+                    && symbol.choicesAndConf.get(1).first.matches("[a-c]")){
+                i=1;
+            }
+            else{
+                i=0;
+            }
+            textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
+
+            text=text+symbol.choicesAndConf.get(i).first;
+            canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
+
+
+            String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
+            Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol1 " + symbol.choicesAndConf.get(i).first + "; left " + symbol.rect.left);
+
+            Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            confPaint.setColor(Color.rgb(0, 0, 255));
+            confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
+            confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
+
+            canvas.drawText(conf, symbol.rect.left, symbol.rect.top - symbol.rect.height() * (i + 1), confPaint);
 
             Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
@@ -161,8 +173,9 @@ public class TextRecognizer {
             prevRight = symbol.rect.right;
             prevBottom = symbol.rect.bottom;
         }
+        CheckData checkData = new CheckData(bm, text, symbols);
 
-        return bm;
+        return checkData;
     }
 
 
@@ -282,7 +295,9 @@ public class TextRecognizer {
 
         public CheckData(Bitmap res, String wholeText, List<Symbol> symbols) {
             this.res = res;
+            wholeText.replaceAll("^\\d | (\\d )?.$","");
             this.wholeText = wholeText.replaceAll("\\s","");
+//            this.wholeText=wholeText;
             this.symbols = symbols;
         }
     }

@@ -43,11 +43,12 @@ public class MainActivity extends AppCompatActivity {
 
 
         button.setOnClickListener(new View.OnClickListener() {
-//            Integer i=0;
+            Integer i=0;
             @Override
             public void onClick(View v) {
+
                 recognize();
-//                i++;
+                i++;
 
             }
         });
@@ -64,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
         Context context = getApplicationContext();
         float scale = context.getResources().getDisplayMetrics().density;
         double successfullyRecognized = 0;
+        double allPrc=0;
         AssetManager assetManager = getApplicationContext().getAssets();
         InputStream istr;
         try {
@@ -77,20 +79,20 @@ public class MainActivity extends AppCompatActivity {
                 Rect micrRect = new Rect(0, 0, res.getWidth(), res.getHeight());
                 micrRect = TextRecognizer.findRect(context, res, micrRect);
                 TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, micrRect);
-                res = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols);
+                TextRecognizer.CheckData checkData1 = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols);
 
-                Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
+                Log.d(TAG, "file: " + file + "; recognized: " + checkData1.wholeText);
 
-                double itemRecognition = 100.0 * file.length() / (checkData.wholeText.length() +
-                        levenshteinDistance(checkData.wholeText, file));
-                Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData.wholeText);
-
+                double itemRecognition = 100.0 * file.length() / (checkData1.wholeText.length() +
+                        levenshteinDistance(checkData1.wholeText, file));
+                Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData1.wholeText);
+                allPrc=allPrc+itemRecognition;
                 if (itemRecognition == 100.0) {
                     successfullyRecognized++;
                 }
-
-                showResults(src, res, checkData, itemRecognition);
+                showResults(src, res, checkData1, itemRecognition);
             }
+                Log.d("allPrc", ""+allPrc/list.length);
             Log.d("total: ", "" + successfullyRecognized / list.length);
         } catch (IOException e) {
             Log.e(TAG, e.toString());
