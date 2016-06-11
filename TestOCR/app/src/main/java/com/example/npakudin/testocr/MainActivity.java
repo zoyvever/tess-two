@@ -121,8 +121,9 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, file);
                 istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
-                Bitmap res = TextRecognizer.prepareImageForOcr(src);
-                Rect micrRect = new Rect(0, 0, res.getWidth(), res.getHeight());
+                Rect micrRect = new Rect(0, 0, src.getWidth(), src.getHeight());
+
+                Bitmap res = TextRecognizer.prepareImageForOcr(src, context, micrRect);
                 micrRect = TextRecognizer.findRect(context, res, micrRect);
 
                 TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, micrRect);

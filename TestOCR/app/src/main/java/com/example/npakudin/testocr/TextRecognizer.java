@@ -47,7 +47,12 @@ public class TextRecognizer {
     }
 
     public static Rect findRect(Context context, Bitmap bm, Rect micrRect){
-        String recognizedText= initTessBaseApi(context, bm, micrRect);
+        float i =(float)0.2;
+
+        String recognizedText = initTessBaseApi(context, bm, micrRect);
+            i=i+(float)0.1;
+
+
         Log.d("rec1", recognizedText);
         if (recognizedText.trim().length() > 0) {
             HashMap<Integer, Integer> bottom = new HashMap<>();
@@ -95,11 +100,13 @@ public class TextRecognizer {
                     }
                 } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
                 Log.d("text1", recognizedText);
-                return new CheckData(bm, recognizedText, symbols);
+                // todo tut costyl!!! opt.inMutable = true;
+                return new CheckData(bm.copy(Bitmap.Config.ARGB_8888, true), recognizedText, symbols);
 
             }
             else {
                 Log.d(LOGTAG, "text =0");
+                return new CheckData(bm, "", new ArrayList<TextRecognizer.Symbol>());
             }
 
         } catch (Exception e) {
@@ -107,7 +114,7 @@ public class TextRecognizer {
             return null;
 
         }
-        return new CheckData(bm, "", null);
+//        return new CheckData(bm, "", null);
     }
 
     public static int findMostFrequentItem(HashMap <Integer,Integer> map){
@@ -124,6 +131,7 @@ public class TextRecognizer {
     }
 
     public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols){
+//        Bitmap bm = bmm.copy(Bitmap.Config.ARGB_8888, true);
         Canvas canvas = new Canvas(bm);
         float prevRight = 0;
         float prevBottom = 0;
@@ -203,14 +211,25 @@ public class TextRecognizer {
 
 
     @NonNull
-    public static Bitmap prepareImageForOcr(Bitmap bm) {
-        //binarize and find skew
-        Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
-                3000, 3000,
-                3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
-                Binarize.OTSU_SCORE_FRACTION);
-        Float s = Skew.findSkew(imag);
-        return WriteFile.writeBitmap(Rotate.rotate(imag,s));
+    public static Bitmap prepareImageForOcr(Bitmap bm, Context context, Rect rect) {
+//        binarize and find skew
+        float i =0;
+        String recognizedText="";
+        Bitmap res;
+        do {
+            Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
+                    3000, 3000,
+                    3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
+                    Binarize.OTSU_SCORE_FRACTION+i);
+    //        Pix imag = Binarize.sauvolaBinarizeTiled(ReadFile.readBitmap(bm));
+            Float s = Skew.findSkew(imag);
+            res=WriteFile.writeBitmap(Rotate.rotate(imag,s));
+            recognizedText = initTessBaseApi(context, res, rect);
+            Log.d("rhere", recognizedText);
+            i=i+(float)0.1;
+        } while (i<(float) 0.6 && recognizedText.length()>45| recognizedText.length()<5);
+
+        return res;
 
     }
 
