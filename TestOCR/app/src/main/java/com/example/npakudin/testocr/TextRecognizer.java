@@ -3,6 +3,7 @@ package com.example.npakudin.testocr;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -48,11 +49,9 @@ public class TextRecognizer {
 
     public static Rect findRect(Context context, Bitmap bm, Rect micrRect){
         float i =(float)0.2;
-
+        int min=500;
         String recognizedText = initTessBaseApi(context, bm, micrRect);
             i=i+(float)0.1;
-
-
         Log.d("rec1", recognizedText);
         if (recognizedText.trim().length() > 0) {
             HashMap<Integer, Integer> bottom = new HashMap<>();
@@ -63,25 +62,33 @@ public class TextRecognizer {
                 Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
                 for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
                     if (item.second> 70) {
+                        if ((rect.right-rect.left)<min){min=rect.right-rect.left;}
                         bottom = fillTheMap(bottom, rect.bottom);
                         top = fillTheMap(top, rect.top);
                     }
                 }
             } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
-            int pogr= (int) (0.1*(findMostFrequentItem(top)-(findMostFrequentItem(bottom))));
+            int pogr= (int) (0.2*(findMostFrequentItem(top)-(findMostFrequentItem(bottom))));
+            Log.d("pogr", ""+pogr);
 //            int pogr=0;
+            micrRect.left=min;
             micrRect.top=findMostFrequentItem(top)+pogr;
-            micrRect.bottom=findMostFrequentItem(bottom)-pogr;
+            if (bm.getHeight()>findMostFrequentItem(bottom)-pogr) {
+                micrRect.bottom = findMostFrequentItem(bottom) - pogr;
+            }
         }
         return micrRect;
     }
 
     public static CheckData recognize(Context context, Bitmap bm, Rect micrRect) {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inMutable = true;
         try {
             if (micrRect.bottom == micrRect.top) {
                 return new CheckData(bm, "", new ArrayList<TextRecognizer.Symbol>());
             }
             String recognizedText= initTessBaseApi(context, bm, micrRect);
+            Log.d("text1", recognizedText);
             if (recognizedText.trim().length() > 0) {
 
                 List<Symbol> symbols = new ArrayList();
@@ -99,9 +106,8 @@ public class TextRecognizer {
                         symbols.add(symbol);
                     }
                 } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
-                Log.d("text1", recognizedText);
-                // todo tut costyl!!! opt.inMutable = true;
-                return new CheckData(bm.copy(Bitmap.Config.ARGB_8888, true), recognizedText, symbols);
+
+                return new CheckData(bm, recognizedText, symbols);
 
             }
             else {
@@ -114,7 +120,6 @@ public class TextRecognizer {
             return null;
 
         }
-//        return new CheckData(bm, "", null);
     }
 
     public static int findMostFrequentItem(HashMap <Integer,Integer> map){
@@ -130,31 +135,46 @@ public class TextRecognizer {
         return trueBorder;
     }
 
-    public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols){
+    public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols, int min){
 //        Bitmap bm = bmm.copy(Bitmap.Config.ARGB_8888, true);
         Canvas canvas = new Canvas(bm);
         float prevRight = 0;
         float prevBottom = 0;
-        int left=0;
+        int right=0;
+        Rect temp=new Rect(0,0,0,0);
         String text="";
         Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         textPaint.setColor(Color.rgb(0xff, 0, 0));
 
         for (Symbol symbol : symbols) {
             for (int i = 0; i < symbol.choicesAndConf.size(); i ++){
-                //            if (symbol.rect.left==left){
-                //                continue;
-                //            }
-                //            else {
-                //                left=symbol.rect.left;
-                //            }
-                //            if (symbol.choicesAndConf.size()>1 && symbol.choicesAndConf.get(0).second-symbol.choicesAndConf.get(1).second<4
-                //                    && symbol.choicesAndConf.get(1).first.matches("[a-c]")){
-                //                i=1;
-                //            }
-                //            else{
-                //                i=0;
-                //            }
+                if (symbol.rect.left<=right){continue;}
+                else { right=symbol.rect.right;  }
+
+
+                if (symbol.rect.right-symbol.rect.left<min && temp.left==0){
+                    temp= symbol.rect; continue;
+                }
+                else if(symbol.rect.right-symbol.rect.left<min && temp.left!=0){
+                    if (symbol.rect.top<temp.top){temp.top=symbol.rect.top;}
+                    if (symbol.rect.bottom>temp.bottom){temp.bottom=symbol.rect.bottom;}
+                    temp.right=symbol.rect.right;
+                    //todo initTessBase
+//                    baseApi.setPageSegMode(10);
+//                    baseApi = new TessBaseAPI();
+//                    baseApi.init(baseDir.getAbsolutePath(), "mcr");
+                    baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
+                    baseApi.setImage(bm);
+                    baseApi.setRectangle(temp);
+                    Log.d("here", baseApi.getUTF8Text());
+
+                    //todo initTessBase
+                    temp.left =0;
+                    baseApi.clear();
+                    continue;
+                }
+
+
                 textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
 
                 text = text + symbol.choicesAndConf.get(i).first;
@@ -227,7 +247,7 @@ public class TextRecognizer {
             recognizedText = initTessBaseApi(context, res, rect);
             Log.d("rhere", recognizedText);
             i=i+(float)0.1;
-        } while (i<(float) 0.6 && recognizedText.length()>45| recognizedText.length()<5);
+        } while (i<(float) 0.6 && recognizedText.length()>60| recognizedText.length()<5);
 
         return res;
 

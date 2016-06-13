@@ -113,8 +113,6 @@ public class MainActivity extends AppCompatActivity {
         AssetManager assetManager = getApplicationContext().getAssets();
         InputStream istr;
         try {
-
-
             String[] list = getAssets().list("img");
             for (String file : list) {
 //            String file =list[i];
@@ -127,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
                 micrRect = TextRecognizer.findRect(context, res, micrRect);
 
                 TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, micrRect);
-                res = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols);
+                res = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols, micrRect.left);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 
