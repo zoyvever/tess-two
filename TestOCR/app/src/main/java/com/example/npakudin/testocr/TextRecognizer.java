@@ -12,6 +12,7 @@ import android.support.annotation.BoolRes;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
+
 import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
 import com.googlecode.leptonica.android.ReadFile;
@@ -35,23 +36,24 @@ public class TextRecognizer {
     private static final String LOGTAG = "TextRecognizer";
     private static TessBaseAPI baseApi = null;
 
-    private static String initTessBaseApi(Context context,Bitmap bm, Rect rect){
+    private static String initTessBaseApi(Context context, Bitmap bm, Rect rect) {
         if (baseApi == null) {
             File baseDir = createMicrTessData(context);
 
             baseApi = new TessBaseAPI();
             baseApi.init(baseDir.getAbsolutePath(), "mcr");
         }
+        baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO);
         baseApi.setImage(bm);
         baseApi.setRectangle(rect);
-        return  baseApi.getUTF8Text();
+        return baseApi.getUTF8Text();
     }
 
-    public static Rect findRect(Context context, Bitmap bm, Rect micrRect){
-        float i =(float)0.2;
-        int min=500;
+    public static Rect findRect(Context context, Bitmap bm, Rect micrRect) {
+        float i = (float) 0.2;
+        int min = 500;
         String recognizedText = initTessBaseApi(context, bm, micrRect);
-            i=i+(float)0.1;
+        i = i + (float) 0.1;
         Log.d("rec1", recognizedText);
         if (recognizedText.trim().length() > 0) {
             HashMap<Integer, Integer> bottom = new HashMap<>();
@@ -61,21 +63,19 @@ public class TextRecognizer {
             do {
                 Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
                 for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
-                    if (item.second> 70) {
-                        if ((rect.right-rect.left)<min){min=rect.right-rect.left;}
+                    if (item.second > 70) {
+                        if ((rect.right - rect.left) < min) {
+                            min = rect.right - rect.left;
+                        }
                         bottom = fillTheMap(bottom, rect.bottom);
                         top = fillTheMap(top, rect.top);
                     }
                 }
             } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
-            int pogr= (int) (0.2*(findMostFrequentItem(top)-(findMostFrequentItem(bottom))));
-            Log.d("pogr", ""+pogr);
-//            int pogr=0;
-            micrRect.left=min;
-            micrRect.top=findMostFrequentItem(top)+pogr;
-            if (bm.getHeight()>findMostFrequentItem(bottom)-pogr) {
-                micrRect.bottom = findMostFrequentItem(bottom) - pogr;
-            }
+
+            micrRect.left = min;
+            micrRect.top = findMostFrequentItem(top);
+            micrRect.bottom=bm.getHeight();
         }
         return micrRect;
     }
@@ -87,7 +87,7 @@ public class TextRecognizer {
             if (micrRect.bottom == micrRect.top) {
                 return new CheckData(bm, "", new ArrayList<TextRecognizer.Symbol>());
             }
-            String recognizedText= initTessBaseApi(context, bm, micrRect);
+            String recognizedText = initTessBaseApi(context, bm, micrRect);
             Log.d("text1", recognizedText);
             if (recognizedText.trim().length() > 0) {
 
@@ -100,7 +100,6 @@ public class TextRecognizer {
 
                     for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
                         symbol.symbol = item.first;
-                        symbol.confidence = item.second;
                         symbol.choicesAndConf = choicesAndConf;
                         symbol.rect = rect;
                         symbols.add(symbol);
@@ -109,8 +108,7 @@ public class TextRecognizer {
 
                 return new CheckData(bm, recognizedText, symbols);
 
-            }
-            else {
+            } else {
                 Log.d(LOGTAG, "text =0");
                 return new CheckData(bm, "", new ArrayList<TextRecognizer.Symbol>());
             }
@@ -122,55 +120,61 @@ public class TextRecognizer {
         }
     }
 
-    public static int findMostFrequentItem(HashMap <Integer,Integer> map){
-        int trueBorder=0;
-        int freq=0;
-        for (HashMap.Entry<Integer, Integer> entry : map.entrySet())
-        {
-            if (entry.getValue()>freq) {
-                trueBorder=entry.getKey();
-                freq=entry.getValue();
+    public static int findMostFrequentItem(HashMap<Integer, Integer> map) {
+        int trueBorder = 0;
+        int freq = 0;
+        for (HashMap.Entry<Integer, Integer> entry : map.entrySet()) {
+            if (entry.getValue() > freq) {
+                trueBorder = entry.getKey();
+                freq = entry.getValue();
             }
         }
         return trueBorder;
     }
 
-    public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols, int min){
+    public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols, int min) {
 //        Bitmap bm = bmm.copy(Bitmap.Config.ARGB_8888, true);
         Canvas canvas = new Canvas(bm);
         float prevRight = 0;
         float prevBottom = 0;
-        int right=0;
-        Rect temp=new Rect(0,0,0,0);
-        String text="";
+        int right = 0;
+        Rect temp = new Rect(0, 0, 0, 0);
+        String text = "";
         Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         textPaint.setColor(Color.rgb(0xff, 0, 0));
 
         for (Symbol symbol : symbols) {
-            for (int i = 0; i < symbol.choicesAndConf.size(); i ++){
-                if (symbol.rect.left<=right){continue;}
-                else { right=symbol.rect.right;  }
-
-
-                if (symbol.rect.right-symbol.rect.left<min && temp.left==0){
-                    temp= symbol.rect; continue;
+            for (int i = 0; i < symbol.choicesAndConf.size(); i++) {
+                if (symbol.rect.left <= right) {
+                    continue;
+                } else {
+                    right = symbol.rect.right;
                 }
-                else if(symbol.rect.right-symbol.rect.left<min && temp.left!=0){
-                    if (symbol.rect.top<temp.top){temp.top=symbol.rect.top;}
-                    if (symbol.rect.bottom>temp.bottom){temp.bottom=symbol.rect.bottom;}
-                    temp.right=symbol.rect.right;
+
+
+                if (symbol.rect.right - symbol.rect.left < min && temp.left == 0) {
+                    temp = symbol.rect;
+                    continue;
+                } else if (symbol.rect.right - symbol.rect.left < min && temp.left != 0) {
+                    if (symbol.rect.top < temp.top) {
+                        temp.top = symbol.rect.top;
+                    }
+                    if (symbol.rect.bottom > temp.bottom) {
+                        temp.bottom = symbol.rect.bottom;
+                    }
+                    temp.right = symbol.rect.right;
                     //todo initTessBase
 //                    baseApi.setPageSegMode(10);
 //                    baseApi = new TessBaseAPI();
-//                    baseApi.init(baseDir.getAbsolutePath(), "mcr");
+////                    baseApi.init(baseDir.getAbsolutePath(), "mcr");
                     baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
                     baseApi.setImage(bm);
                     baseApi.setRectangle(temp);
                     Log.d("here", baseApi.getUTF8Text());
 
                     //todo initTessBase
-                    temp.left =0;
-                    baseApi.clear();
+                    temp.left = 0;
+//                    baseApi.clear();
                     continue;
                 }
 
@@ -182,8 +186,8 @@ public class TextRecognizer {
 
 
                 String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
-                Log.d("conflog ", "" + symbol.confidence.doubleValue() + "; symbol1 " + symbol.choicesAndConf.get(i).first +
-                        "; left " + symbol.rect.left + "; right" + symbol.rect.right+" widh "+(symbol.rect.right-symbol.rect.left));
+                Log.d("conflog ", "" + symbol.choicesAndConf.get(i).second + "; symbol1 " + symbol.choicesAndConf.get(i).first +
+                        "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " + (symbol.rect.right - symbol.rect.left));
 
                 Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
                 confPaint.setColor(Color.rgb(0, 0, 255));
@@ -207,19 +211,18 @@ public class TextRecognizer {
 //        CheckData checkData = new CheckData(bm, text, symbols);
 //
 //        return checkData;
-    return bm;
+        return bm;
     }
 
 
-    public static HashMap<Integer, Integer> fillTheMap(HashMap<Integer,Integer> map, Integer rect){
-    if (map.get(rect)!=null) {
-        map.put(rect, map.get(rect)+1);
-    }
-    else {
-        map.put(rect, 1);
-    }
+    public static HashMap<Integer, Integer> fillTheMap(HashMap<Integer, Integer> map, Integer rect) {
+        if (map.get(rect) != null) {
+            map.put(rect, map.get(rect) + 1);
+        } else {
+            map.put(rect, 1);
+        }
         return map;
-}
+    }
 
     public static class Symbol {
         public String symbol;
@@ -233,21 +236,21 @@ public class TextRecognizer {
     @NonNull
     public static Bitmap prepareImageForOcr(Bitmap bm, Context context, Rect rect) {
 //        binarize and find skew
-        float i =0;
-        String recognizedText="";
+        float i = 0;
+        String recognizedText = "";
         Bitmap res;
         do {
             Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
                     3000, 3000,
                     3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
-                    Binarize.OTSU_SCORE_FRACTION+i);
-    //        Pix imag = Binarize.sauvolaBinarizeTiled(ReadFile.readBitmap(bm));
+                    Binarize.OTSU_SCORE_FRACTION + i);
+            //        Pix imag = Binarize.sauvolaBinarizeTiled(ReadFile.readBitmap(bm));
             Float s = Skew.findSkew(imag);
-            res=WriteFile.writeBitmap(Rotate.rotate(imag,s));
+            res = WriteFile.writeBitmap(Rotate.rotate(imag, s));
             recognizedText = initTessBaseApi(context, res, rect);
             Log.d("rhere", recognizedText);
-            i=i+(float)0.1;
-        } while (i<(float) 0.6 && recognizedText.length()>60| recognizedText.length()<5);
+            i = i + (float) 0.1;
+        } while (i < (float) 0.6 && recognizedText.length() > 60 | recognizedText.length() < 5);
 
         return res;
 
@@ -302,8 +305,7 @@ public class TextRecognizer {
         return baseDir;
     }
 
-    public static File getCacheDir(Context context)
-    {
+    public static File getCacheDir(Context context) {
         File maxDir = null;
         long maxSpace = -1;
 
@@ -324,8 +326,7 @@ public class TextRecognizer {
 
         if (maxDir != null) {
             return maxDir;
-        }
-        else {
+        } else {
             return null;
         }
     }
@@ -333,14 +334,14 @@ public class TextRecognizer {
     public static class CheckData {
 
         public int distance = -1;
-        public String realText="";
+        public String realText = "";
         public Bitmap res;
-        public String wholeText="";
+        public String wholeText = "";
         public List<Symbol> symbols;
 
         public CheckData(Bitmap res, String wholeText, List<Symbol> symbols) {
             this.res = res;
-            this.wholeText = wholeText.replaceAll("^\\d | (\\d )?.$|\\s","");
+            this.wholeText = wholeText.replaceAll("^\\d | (\\d )?.$|\\s", "");
 //            this.wholeText=wholeText;
             this.symbols = symbols;
         }

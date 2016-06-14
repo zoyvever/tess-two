@@ -29,8 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     TextView textViewRes;
     ListView listView;
-    List<TextRecognizer.CheckData> entities = new ArrayList<>();
-    ArrayAdapter<TextRecognizer.CheckData> adapter;
+    List<TextRec.CheckData> entities = new ArrayList<>();
+    ArrayAdapter<TextRec.CheckData> adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
         listView = (ListView) findViewById(R.id.listview);
 
 
-        adapter = new ArrayAdapter<TextRecognizer.CheckData>(this, R.layout.list_item) {
+        adapter = new ArrayAdapter<TextRec.CheckData>(this, R.layout.list_item) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 ViewHolder holder = null;
@@ -93,7 +93,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
+//
         if (!isRecognized) {
             recognize();
             isRecognized = true;
@@ -115,40 +115,40 @@ public class MainActivity extends AppCompatActivity {
         try {
             String[] list = getAssets().list("img");
             for (String file : list) {
-//            String file =list[i];
                 Log.d(TAG, file);
                 istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
-                Rect micrRect = new Rect(0, 0, src.getWidth(), src.getHeight());
+//                Rect micrRect = new Rect(0, 0, src.getWidth(), src.getHeight());
+//                Bitmap res = TextRecognizer.prepareImageForOcr(src, context, micrRect);
+//                micrRect = TextRecognizer.findRect(context, res, micrRect);
+//                TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, micrRect);
+//                res = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols, micrRect.left);
 
-                Bitmap res = TextRecognizer.prepareImageForOcr(src, context, micrRect);
-                micrRect = TextRecognizer.findRect(context, res, micrRect);
-
-                TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, micrRect);
-                res = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols, micrRect.left);
+               Bitmap res= TextRec.recognize(src,context);
+               TextRec.CheckData checkData=TextRec.improve(TextRec.findBorders(),res, context);
+               checkData.res=TextRec.drawRecText(res,scale,checkData.symbols);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 
-                double itemRecognition = 100.0 * file.length() / (checkData.wholeText.length() +
-                        levenshteinDistance(checkData.wholeText, file));
-                Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData.wholeText);
-                allPrc=allPrc+itemRecognition;
-                if (itemRecognition == 100.0) {
-                    successfullyRecognized++;
-                }
-                showResults(src, res, checkData, itemRecognition);
-
-                saveBitmap(checkData.res, file.substring(0, file.length() - 4));
-
                 checkData.realText = file.substring(0, file.length() - 5);
                 checkData.distance = levenshteinDistance(checkData.wholeText, checkData.realText);
+
+                double itemRecognition =(checkData.wholeText.length()-checkData.distance)/(file.length()-5.0);
+                Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData.wholeText);
+                allPrc=allPrc+itemRecognition;
+                if (itemRecognition == 1) {
+                    successfullyRecognized++;
+                }
+                saveBitmap(checkData.res, file.substring(0, file.length() - 4));
+
+
                 entities.add(checkData);
             }
             Log.d("allPrc", ""+allPrc/list.length);
             Log.d("total: ", "" + successfullyRecognized / list.length);
 
 
-            for (TextRecognizer.CheckData item : entities) {
+            for (TextRec.CheckData item : entities) {
                 Log.d(TAG, "realText:   " + item.realText);
                 Log.d(TAG, "recognized: " + item.wholeText);
                 Log.d(TAG, "levenshteinDistance: " + item.distance);
@@ -156,16 +156,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException e) {
             Log.e(TAG, e.toString());
         }
-    }
-
-    private void showResults(Bitmap src, Bitmap res, final TextRecognizer.CheckData checkData, Double itemRecognition) {
-
-        String message = String.format("Number: %s, %n prc: %s" , checkData.wholeText, itemRecognition );
-        Log.d("rectext", checkData.wholeText);
-
-//        imageViewSrc.setImageBitmap(src);
-//        imageViewRes.setImageBitmap(res);
-        textViewRes.setText(message);
     }
 
     private boolean saveBitmap(Bitmap bm, String name) {
