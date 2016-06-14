@@ -50,8 +50,7 @@ public class MainActivity extends AppCompatActivity {
                     convertView = inflater.inflate(R.layout.list_item, null, false);
                     holder = new ViewHolder(convertView);
                     convertView.setTag(holder);
-                }
-                else {
+                } else {
                     holder = (ViewHolder) convertView.getTag();
                 }
                 holder.imageView().setImageBitmap(entities.get(position).res);
@@ -90,6 +89,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isRecognized = false;
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -109,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
         Context context = getApplicationContext();
         float scale = context.getResources().getDisplayMetrics().density;
         double successfullyRecognized = 0;
-        double allPrc=0;
+        double allPrc = 0;
         AssetManager assetManager = getApplicationContext().getAssets();
         InputStream istr;
         try {
@@ -124,18 +124,19 @@ public class MainActivity extends AppCompatActivity {
 //                TextRecognizer.CheckData checkData = TextRecognizer.recognize(context, res, micrRect);
 //                res = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols, micrRect.left);
 
-               Bitmap res= TextRec.recognize(src,context);
-              CheckData checkData=TextRec.improve(TextRec.findBorders(),res, context);
-               checkData.res=TextRec.drawRecText(res,scale,checkData.symbols);
+                Bitmap res = TextRec.recognize(src, context);
+                TextRec.MicrInfo micrInfo = TextRec.findBorders();
+                CheckData checkData = TextRec.improve(micrInfo, res, context);
+                checkData.res = TextRec.drawRecText(res, scale, checkData.symbols);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 
                 checkData.realText = file.substring(0, file.length() - 5);
                 checkData.distance = levenshteinDistance(checkData.wholeText, checkData.realText);
 
-                double itemRecognition =(checkData.wholeText.length()-checkData.distance)/(file.length()-5.0);
+                double itemRecognition = (checkData.wholeText.length() - checkData.distance) / (file.length() - 5.0);
                 Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData.wholeText);
-                allPrc=allPrc+itemRecognition;
+                allPrc = allPrc + itemRecognition;
                 if (itemRecognition == 1) {
                     successfullyRecognized++;
                 }
@@ -144,7 +145,7 @@ public class MainActivity extends AppCompatActivity {
 
                 entities.add(checkData);
             }
-            Log.d("allPrc", ""+allPrc/list.length);
+            Log.d("allPrc", "" + allPrc / list.length);
             Log.d("total: ", "" + successfullyRecognized / list.length);
 
 

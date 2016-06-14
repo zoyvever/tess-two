@@ -43,6 +43,22 @@ public class TextRec {
         public Rect rect;
     }
 
+    public static class MicrInfo {
+
+
+        public int top = 0;
+        public int bottom = 0;
+        public int minimumCharRect = 0;
+
+        public MicrInfo(int top, int bottom, int minimumCharRect) {
+            this.top = top;
+            this.bottom = bottom;
+            this.minimumCharRect = minimumCharRect;
+
+        }
+
+    }
+
     public static File getCacheDir(Context context) {
         File maxDir = null;
         long maxSpace = -1;
@@ -172,7 +188,7 @@ public class TextRec {
         return res;
     }
 
-    public static int[] findBorders(){
+    public static MicrInfo findBorders(){
         int min=1000;
         HashMap<Integer, Integer> bottom = new HashMap<>();
         HashMap<Integer, Integer> top = new HashMap<>();
@@ -191,25 +207,21 @@ public class TextRec {
             }
         } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
         int pogr = (int) (0.6 * (findMostFrequentItem(top) - (findMostFrequentItem(bottom))));
-        return new int[]  {findMostFrequentItem(top)+pogr,findMostFrequentItem(bottom)-pogr, min};
-
-//        return new Pair<Integer, Integer>(2*findMostFrequentItem(top), 2*findMostFrequentItem(bottom));
-
+        return new MicrInfo (findMostFrequentItem(top)+pogr,findMostFrequentItem(bottom)-pogr, min);
     }
 
-    public static CheckData improve (int[] borders, Bitmap bm, Context context){
+    public static CheckData improve (MicrInfo micrInfo, Bitmap bm, Context context){
         List<Symbol> symbols = new ArrayList();
         ResultIterator resultIterator = baseApi.getResultIterator();
         String recognizedText="";
         int right=0;
-        Log.d("borders", ""+borders[0]+" "+borders[1]);
         Rect temp =new Rect(0,0,0,0);
         do {
             Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
             List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
             Symbol symbol = new Symbol();
                for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
-                if (rect.bottom<borders[1] && rect.top>borders[0]) {
+                if (rect.bottom<micrInfo.bottom && rect.top>micrInfo.top) {
                     for (int i = 0; i < choicesAndConf.size(); i++) {
                         if (rect.left <= right) {
                             continue;
@@ -217,10 +229,10 @@ public class TextRec {
                             right = rect.right;
                         }
 
-                        if (rect.right - rect.left < borders[2] && temp.left == 0) {
+                        if (rect.right - rect.left < micrInfo.minimumCharRect && temp.left == 0) {
                             temp = rect;
                             continue;
-                        } else if (rect.right - rect.left >= borders[2]) {
+                        } else if (rect.right - rect.left >= micrInfo.minimumCharRect) {
                             symbol.symbol = item.first;
                             symbol.choicesAndConf = choicesAndConf;
                             symbol.rect = rect;
