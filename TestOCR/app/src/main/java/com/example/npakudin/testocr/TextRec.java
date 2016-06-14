@@ -31,9 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Created by zoy on 13.06.16.
- */
 public class TextRec {
     private static final String LOGTAG = "TextRecognizer";
     private static TessBaseAPI baseApi = null;
@@ -44,28 +41,6 @@ public class TextRec {
 
         public List<Pair<String, Double>> choicesAndConf;
         public Rect rect;
-    }
-
-    public static class CheckData {
-
-        public int distance = -1;
-        public String realText = "";
-        public Bitmap res;
-        public String wholeText = "";
-        public List<Symbol> symbols=null;
-
-
-        public CheckData(Bitmap res, String wholeText) {
-            this.res = res;
-            this.wholeText = wholeText.replaceAll("^\\d | (\\d )?.$|\\s", "");
-//            this.wholeText=wholeText;
-          }
-        public CheckData(Bitmap res, String wholeText, List<Symbol> symbols) {
-            this.res = res;
-            this.wholeText = wholeText.replaceAll("^\\d | (\\d )?.$|\\s", "");
-//            this.wholeText=wholeText;
-            this.symbols = symbols;
-        }
     }
 
     public static File getCacheDir(Context context) {
@@ -192,7 +167,7 @@ public class TextRec {
             recognizedText = initTessBaseApi(context, res);
             Log.d("rhere", recognizedText);
             i = i + (float) 0.1;
-        } while (i < (float) 0.6 && !recognizedText.matches("(.*?\\n?)*[a-d]( *)?(\\d( *)?){3,15}[a-d].{10,30}.*(\\n?.*)*"));
+        } while (i < (float) 0.6 && !recognizedText.matches("(.*\\n)*.{15,30}(.*\\n*)*"));
 
         return res;
     }

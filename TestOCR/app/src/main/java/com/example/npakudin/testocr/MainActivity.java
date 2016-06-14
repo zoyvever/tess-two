@@ -29,8 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     TextView textViewRes;
     ListView listView;
-    List<TextRec.CheckData> entities = new ArrayList<>();
-    ArrayAdapter<TextRec.CheckData> adapter;
+    List<CheckData> entities = new ArrayList<>();
+    ArrayAdapter<CheckData> adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
         listView = (ListView) findViewById(R.id.listview);
 
 
-        adapter = new ArrayAdapter<TextRec.CheckData>(this, R.layout.list_item) {
+        adapter = new ArrayAdapter<CheckData>(this, R.layout.list_item) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 ViewHolder holder = null;
@@ -125,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
 //                res = TextRecognizer.drawRecText(checkData.res, scale, checkData.symbols, micrRect.left);
 
                Bitmap res= TextRec.recognize(src,context);
-               TextRec.CheckData checkData=TextRec.improve(TextRec.findBorders(),res, context);
+              CheckData checkData=TextRec.improve(TextRec.findBorders(),res, context);
                checkData.res=TextRec.drawRecText(res,scale,checkData.symbols);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
@@ -148,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d("total: ", "" + successfullyRecognized / list.length);
 
 
-            for (TextRec.CheckData item : entities) {
+            for (CheckData item : entities) {
                 Log.d(TAG, "realText:   " + item.realText);
                 Log.d(TAG, "recognized: " + item.wholeText);
                 Log.d(TAG, "levenshteinDistance: " + item.distance);
