@@ -167,7 +167,7 @@ public class TextRec {
         return baseApi.getUTF8Text();
     }
 
-    public static Bitmap recognize(Bitmap bm, Context context) {
+    public static Bitmap prepareImage(Bitmap bm, Context context) {
 //        binarize and find skew
         float i = 0;
         String recognizedText = "";
@@ -188,13 +188,13 @@ public class TextRec {
         return res;
     }
 
-    public static MicrInfo findBorders(){
-        int min=1000;
+    public static MicrInfo findBorders() {
+        int min = 1000;
         HashMap<Integer, Integer> bottom = new HashMap<>();
         HashMap<Integer, Integer> top = new HashMap<>();
         ResultIterator resultIterator = baseApi.getResultIterator();
         do {
-          Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+            Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
 
             for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
                 if (item.second > 73) {
@@ -207,21 +207,21 @@ public class TextRec {
             }
         } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
         int pogr = (int) (0.6 * (findMostFrequentItem(top) - (findMostFrequentItem(bottom))));
-        return new MicrInfo (findMostFrequentItem(top)+pogr,findMostFrequentItem(bottom)-pogr, min);
+        return new MicrInfo(findMostFrequentItem(top) + pogr, findMostFrequentItem(bottom) - pogr, min);
     }
 
-    public static CheckData improve (MicrInfo micrInfo, Bitmap bm, Context context){
+    public static CheckData improve(MicrInfo micrInfo, Bitmap bm, Context context) {
         List<Symbol> symbols = new ArrayList();
         ResultIterator resultIterator = baseApi.getResultIterator();
-        String recognizedText="";
-        int right=0;
-        Rect temp =new Rect(0,0,0,0);
+        String recognizedText = "";
+        int right = 0;
+        Rect temp = new Rect(0, 0, 0, 0);
         do {
             Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
             List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
             Symbol symbol = new Symbol();
-               for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
-                if (rect.bottom<micrInfo.bottom && rect.top>micrInfo.top) {
+            for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
+                if (rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) {
                     for (int i = 0; i < choicesAndConf.size(); i++) {
                         if (rect.left <= right) {
                             continue;
@@ -237,8 +237,7 @@ public class TextRec {
                             symbol.choicesAndConf = choicesAndConf;
                             symbol.rect = rect;
                             symbols.add(symbol);
-                        }
-                        else {
+                        } else {
                             if (rect.top < temp.top) {
                                 temp.top = rect.top;
                             }
@@ -251,34 +250,31 @@ public class TextRec {
                             tempBaseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
                             tempBaseApi.setImage(bm);
                             tempBaseApi.setRectangle(temp);
-                            String s=tempBaseApi.getUTF8Text();
+                            String s = tempBaseApi.getUTF8Text();
                             Log.d("s", s);
                             if (s.matches(".*?c.*?")) {
                                 symbol.symbol = "c";
+                            } else if (s.matches(".*?d.*?")) {
+                                symbol.symbol = "d";
+                            } else {
+                                symbol.symbol = "a";
                             }
-                            else if (s.matches(".*?d.*?")){
-                                symbol.symbol="d";
-                            }
-                            else{
-                                symbol.symbol="a";
-                            }
-                            symbol.choicesAndConf=resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
-                            symbol.rect=temp;
+                            symbol.choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                            symbol.rect = temp;
                             symbols.add(symbol);
                             tempBaseApi.end();
                             temp.left = 0;
                         }
-                        recognizedText=recognizedText+symbol.symbol;
+                        recognizedText = recognizedText + symbol.symbol;
                         Log.d("conflog ", "" + symbol.choicesAndConf.get(i).second + "; symbol1 " + symbol.choicesAndConf.get(i).first +
-                        "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
-                            (symbol.rect.right - symbol.rect.left)+" top,bottom: "+symbol.rect.top+" , "+symbol.rect.bottom);
-
+                                "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
+                                (symbol.rect.right - symbol.rect.left) + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
                     }
                 }
             }
         } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
 
-        return new CheckData(bm,recognizedText,symbols);
+        return new CheckData(bm, recognizedText, symbols);
     }
 
     public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols) {
@@ -288,7 +284,7 @@ public class TextRec {
         String text = "";
         Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         textPaint.setColor(Color.rgb(0xff, 0, 0));
-        Log.d("xxx","xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        Log.d("xxx", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
         for (Symbol symbol : symbols) {
             for (int i = 0; i < symbol.choicesAndConf.size(); i++) {
                 textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
