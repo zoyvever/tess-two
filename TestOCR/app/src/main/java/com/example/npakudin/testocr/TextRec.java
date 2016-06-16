@@ -3,16 +3,12 @@ package com.example.npakudin.testocr;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.support.annotation.BoolRes;
-import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
-
 import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
 import com.googlecode.leptonica.android.ReadFile;
@@ -21,7 +17,6 @@ import com.googlecode.leptonica.android.Skew;
 import com.googlecode.leptonica.android.WriteFile;
 import com.googlecode.tesseract.android.ResultIterator;
 import com.googlecode.tesseract.android.TessBaseAPI;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -31,9 +26,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
+
 public class TextRec {
     private static final String LOGTAG = "TextRecognizer";
-    private static TessBaseAPI baseApi = null;
 
     public static class Symbol {
         public String symbol;
@@ -50,10 +45,10 @@ public class TextRec {
         public int bottom = 0;
         public int minimumCharRect = 0;
 
-        public MicrInfo(int top, int bottom, int minimumCharRect) {
+        public MicrInfo(int top, int bottom, int minimumCharWidth) {
             this.top = top;
             this.bottom = bottom;
-            this.minimumCharRect = minimumCharRect;
+            this.minimumCharRect = minimumCharWidth;
 
         }
 
@@ -85,7 +80,7 @@ public class TextRec {
         }
     }
 
-    public static HashMap<Integer, Integer> fillTheMap(HashMap<Integer, Integer> map, Integer rect) {
+    private static HashMap<Integer, Integer> fillTheMap(HashMap<Integer, Integer> map, Integer rect) {
         if (map.get(rect) != null) {
             map.put(rect, map.get(rect) + 1);
         } else {
@@ -155,44 +150,47 @@ public class TextRec {
         return baseDir;
     }
 
-    private static String initTessBaseApi(Context context, Bitmap bm) {
-        if (baseApi == null) {
-            File baseDir = createMicrTessData(context);
-
-            baseApi = new TessBaseAPI();
-            baseApi.init(baseDir.getAbsolutePath(), "mcr");
-        }
-        baseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO);
-        baseApi.setImage(bm);
-        return baseApi.getUTF8Text();
+    public static TessBaseAPI initTessBaseApi() {
+        TessBaseAPI baseApi= null;
+        baseApi = new TessBaseAPI();
+        baseApi.init("/storage/extSdCard/Android/data/com.example.npakudin.testocr/cache/", "mcr");
+        return baseApi;
     }
 
-    public static Bitmap prepareImage(Bitmap bm, Context context) {
-//        binarize and find skew
-        float i = 0;
+    public static TessBaseAPI recognize( Bitmap bm){
+        TessBaseAPI baseApi=initTessBaseApi();
+        baseApi.setImage(bm);
+        return baseApi;
+    }
+
+    public static  Bitmap prepareImage(Bitmap bm) {
+        float f = 0;
+        TessBaseAPI baseApi= initTessBaseApi();
         String recognizedText = "";
         Bitmap res;
         do {
             Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
                     3000, 3000,
                     3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
-                    Binarize.OTSU_SCORE_FRACTION + i);
-            //        Pix imag = Binarize.sauvolaBinarizeTiled(ReadFile.readBitmap(bm));
+                    Binarize.OTSU_SCORE_FRACTION + f);
+
             Float s = Skew.findSkew(imag);
             res = WriteFile.writeBitmap(Rotate.rotate(imag, s));
-            recognizedText = initTessBaseApi(context, res);
-            Log.d("rhere", recognizedText);
-            i = i + (float) 0.1;
-        } while (i < (float) 0.6 && !recognizedText.matches("(.*\\n)*.{15,30}(.*\\n*)*"));
+            baseApi.setImage(res);
+            recognizedText =baseApi.getUTF8Text();
+            Log.d("rhere", ""+recognizedText);
+            f = f + (float) 0.1;
+        } while (f < (float) 0.6 && !recognizedText.matches("(.*\\n)*.{15,30}(.*\\n*)*"));
 
         return res;
     }
 
-    public static MicrInfo findBorders() {
+    public static MicrInfo findBorders(TessBaseAPI rawRec) {
         int min = 1000;
         HashMap<Integer, Integer> bottom = new HashMap<>();
         HashMap<Integer, Integer> top = new HashMap<>();
-        ResultIterator resultIterator = baseApi.getResultIterator();
+        rawRec.getUTF8Text();
+        ResultIterator resultIterator = rawRec.getResultIterator();
         do {
             Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
 
@@ -210,66 +208,69 @@ public class TextRec {
         return new MicrInfo(findMostFrequentItem(top) + pogr, findMostFrequentItem(bottom) - pogr, min);
     }
 
-    public static CheckData improve(MicrInfo micrInfo, Bitmap bm, Context context) {
+    public static CheckData improve(MicrInfo micrInfo, Bitmap bm, TessBaseAPI baseApi) {
         List<Symbol> symbols = new ArrayList();
         ResultIterator resultIterator = baseApi.getResultIterator();
+
+        TessBaseAPI syngleCharRecognitiion= initTessBaseApi();
+        syngleCharRecognitiion.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
+        syngleCharRecognitiion.setImage(bm);
+
         String recognizedText = "";
         int right = 0;
-        Rect temp = new Rect(0, 0, 0, 0);
+        Rect oneCharRect = new Rect(0, 0, 0, 0);
         do {
             Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
             List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
             Symbol symbol = new Symbol();
             for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
                 if (rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) {
-                    for (int i = 0; i < choicesAndConf.size(); i++) {
-                        if (rect.left <= right) {
-                            continue;
-                        } else {
-                            right = rect.right;
-                        }
-
-                        if (rect.right - rect.left < micrInfo.minimumCharRect && temp.left == 0) {
-                            temp = rect;
-                            continue;
-                        } else if (rect.right - rect.left >= micrInfo.minimumCharRect) {
-                            symbol.symbol = item.first;
-                            symbol.choicesAndConf = choicesAndConf;
-                            symbol.rect = rect;
-                            symbols.add(symbol);
-                        } else {
-                            if (rect.top < temp.top) {
-                                temp.top = rect.top;
-                            }
-                            if (rect.bottom > temp.bottom) {
-                                temp.bottom = rect.bottom;
-                            }
-                            temp.right = rect.right;
-                            TessBaseAPI tempBaseApi = new TessBaseAPI();
-                            tempBaseApi.init(getCacheDir(context).getAbsolutePath(), "mcr");
-                            tempBaseApi.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
-                            tempBaseApi.setImage(bm);
-                            tempBaseApi.setRectangle(temp);
-                            String s = tempBaseApi.getUTF8Text();
-                            Log.d("s", s);
-                            if (s.matches(".*?c.*?")) {
-                                symbol.symbol = "c";
-                            } else if (s.matches(".*?d.*?")) {
-                                symbol.symbol = "d";
-                            } else {
-                                symbol.symbol = "a";
-                            }
-                            symbol.choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
-                            symbol.rect = temp;
-                            symbols.add(symbol);
-                            tempBaseApi.end();
-                            temp.left = 0;
-                        }
-                        recognizedText = recognizedText + symbol.symbol;
-                        Log.d("conflog ", "" + symbol.choicesAndConf.get(i).second + "; symbol1 " + symbol.choicesAndConf.get(i).first +
-                                "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
-                                (symbol.rect.right - symbol.rect.left) + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
+                    if (rect.left <= right) {
+                        continue;
+                    } else {
+                        right = rect.right;
                     }
+
+                    if (rect.right - rect.left < micrInfo.minimumCharRect && oneCharRect.left == 0) {
+                        oneCharRect = rect;
+                        continue;
+                    } else if (rect.right - rect.left >= micrInfo.minimumCharRect) {
+                        symbol.symbol = item.first;
+                        symbol.choicesAndConf = choicesAndConf;
+                        symbol.rect = rect;
+                        symbols.add(symbol);
+                    } else {
+                        if (rect.top < oneCharRect.top) {
+                            oneCharRect.top = rect.top;
+                        }
+                        if (rect.bottom > oneCharRect.bottom) {
+                            oneCharRect.bottom = rect.bottom;
+                        }
+                        oneCharRect.right = rect.right;
+                        syngleCharRecognitiion.setRectangle(oneCharRect);
+                        String s = syngleCharRecognitiion.getUTF8Text();
+                        Log.d("s", s);
+                        if (s.matches(".*c.*")) {
+                            symbol.symbol = "c";
+                        } else if (s.matches(".*d.*")) {
+                            symbol.symbol = "d";
+                        }else if (s.matches(".*b.*"))
+                        {
+                                symbol.symbol="b";
+                        }
+                        else  {
+                          symbol.symbol = "a";
+                        }
+                        symbol.choicesAndConf = syngleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                        symbol.rect = oneCharRect;
+                        symbols.add(symbol);
+                        oneCharRect.left = 0;
+                    }
+                recognizedText = recognizedText + symbol.symbol;
+                Log.d("conflog ", "" + symbol.choicesAndConf.get(0).second + "; symbol1 " + symbol.choicesAndConf.get(0).first +
+                        "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
+                        (symbol.rect.right - symbol.rect.left) + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
+
                 }
             }
         } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));

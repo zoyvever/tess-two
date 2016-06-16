@@ -17,6 +17,8 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.googlecode.tesseract.android.TessBaseAPI;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -36,6 +38,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        TextRec.createMicrTessData( getApplicationContext());
 
         textViewRes = (TextView) findViewById(R.id.textViewRes);
         listView = (ListView) findViewById(R.id.listview);
@@ -118,9 +122,11 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, file);
                 istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
-                Bitmap res = TextRec.prepareImage(src, context);
-                TextRec.MicrInfo micrInfo = TextRec.findBorders();
-                CheckData checkData = TextRec.improve(micrInfo, res, context);
+
+                Bitmap res = TextRec.prepareImage(src);
+                TessBaseAPI rawRecognize=TextRec.recognize(res);
+                TextRec.MicrInfo micrInfo = TextRec.findBorders(rawRecognize);
+                CheckData checkData = TextRec.improve(micrInfo, res, rawRecognize);
                 checkData.res = TextRec.drawRecText(res, scale, checkData.symbols);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
