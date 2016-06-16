@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Rect;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -39,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        TextRec.createMicrTessData(getApplicationContext());
+        TextRec.init(getApplicationContext());
 
         textViewRes = (TextView) findViewById(R.id.textViewRes);
         listView = (ListView) findViewById(R.id.listview);

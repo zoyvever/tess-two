@@ -103,7 +103,7 @@ public class TextRec {
         return trueBorder;
     }
 
-    public static File createMicrTessData(Context context) {
+    public static File init(Context context) {
         File baseDir = getCacheDir(context);
         File tessdata = new File(baseDir, "tessdata");
         File file = new File(tessdata, "mcr.traineddata");
@@ -152,22 +152,21 @@ public class TextRec {
         return baseDir;
     }
 
-    public static TessBaseAPI initTessBaseApi() {
-        TessBaseAPI baseApi = null;
-        baseApi = new TessBaseAPI();
+    public static TessBaseAPI createTessBaseApi() {
+        TessBaseAPI baseApi = new TessBaseAPI();
         baseApi.init("/storage/extSdCard/Android/data/com.example.npakudin.testocr/cache/", "mcr");
         return baseApi;
     }
 
     public static TessBaseAPI recognize(Bitmap bm) {
-        TessBaseAPI baseApi = initTessBaseApi();
+        TessBaseAPI baseApi = createTessBaseApi();
         baseApi.setImage(bm);
         return baseApi;
     }
 
     public static Bitmap prepareImage(Bitmap bm) {
         float f = 0;
-        TessBaseAPI baseApi = initTessBaseApi();
+        TessBaseAPI baseApi = createTessBaseApi();
         String recognizedText = "";
         Bitmap res;
         do {
@@ -214,7 +213,7 @@ public class TextRec {
         List<Symbol> symbols = new ArrayList();
         ResultIterator resultIterator = baseApi.getResultIterator();
 
-        TessBaseAPI syngleCharRecognitiion = initTessBaseApi();
+        TessBaseAPI syngleCharRecognitiion = createTessBaseApi();
         syngleCharRecognitiion.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
         syngleCharRecognitiion.setImage(bm);
 
