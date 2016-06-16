@@ -267,16 +267,23 @@ public class TextRec {
                         singleCharRecognitiion.setRectangle(oneCharRect);
                         String s = singleCharRecognitiion.getUTF8Text();
                         Log.d("s", s);
-                        if (s.matches(".*c.*")) {
-                            symbol.symbol = "c";
-                        } else if (s.matches(".*d.*")) {
-                            symbol.symbol = "d";
-                        } else if (s.matches(".*b.*")) {
-                            symbol.symbol = "b";
+                        if (s.trim().length() > 0) {
+                            if (s.matches(".*c.*")) {
+                                symbol.symbol = "c";
+                            } else if (s.matches(".*d.*")) {
+                                symbol.symbol = "d";
+                            } else if (s.matches(".*b.*")) {
+                                symbol.symbol = "b";
+                            } else {
+                                symbol.symbol = "a";
+                            }
+                            symbol.choicesAndConf = singleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
                         } else {
-                            symbol.symbol = "a";
+                            Log.d(LOGTAG, "Cannot recognize single char at position of " + rawSymbol.symbol);
+                            symbol.symbol = "-";
+                            symbol.choicesAndConf = new ArrayList<>();
+                            symbol.choicesAndConf.add(new Pair<>("-", 0.0));
                         }
-                        symbol.choicesAndConf = singleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
                         symbol.rect = oneCharRect;
                         symbols.add(symbol);
                         oneCharRect.left = 0;
