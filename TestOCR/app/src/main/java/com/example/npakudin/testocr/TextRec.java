@@ -216,14 +216,12 @@ public class TextRec {
         for (Symbol rawSymbol : rawSymbols) {
             Rect rect = rawSymbol.rect;
 
-            for (Pair<String, Double> item : rawSymbol.choicesAndConf) {
-                if (item.second > 73) {
-                    if ((rect.right - rect.left) < min) {
-                        min = rect.right - rect.left;
-                    }
-                    bottom = fillTheMap(bottom, rect.bottom);
-                    top = fillTheMap(top, rect.top);
+            if (rawSymbol.choicesAndConf.get(0).second > 73) {
+                if ((rect.right - rect.left) < min) {
+                    min = rect.right - rect.left;
                 }
+                bottom = fillTheMap(bottom, rect.bottom);
+                top = fillTheMap(top, rect.top);
             }
         }
         int pogr = (int) (0.6 * (findMostFrequentItem(top) - (findMostFrequentItem(bottom))));
