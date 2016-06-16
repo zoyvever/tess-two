@@ -98,6 +98,7 @@ public class TextRec {
     }
 
     private static String mcrFilePath = null;
+
     public static File init(Context context) {
         File baseDir = getCacheDir(context);
         if (baseDir == null) {
@@ -212,7 +213,7 @@ public class TextRec {
         HashMap<Integer, Integer> bottom = new HashMap<>();
         HashMap<Integer, Integer> top = new HashMap<>();
 
-        for (Symbol rawSymbol: rawSymbols) {
+        for (Symbol rawSymbol : rawSymbols) {
             Rect rect = rawSymbol.rect;
 
             for (Pair<String, Double> item : rawSymbol.choicesAndConf) {
@@ -239,64 +240,63 @@ public class TextRec {
         String recognizedText = "";
         int right = 0;
         Rect oneCharRect = new Rect(0, 0, 0, 0);
-        for (Symbol rawSymbol: rawSymbols) {
+        for (Symbol rawSymbol : rawSymbols) {
             Rect rect = rawSymbol.rect;
             List<Pair<String, Double>> choicesAndConf = rawSymbol.choicesAndConf;
             Symbol symbol = new Symbol();
-            for (Pair<String, Double> item : rawSymbol.choicesAndConf) {
-                if (rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) {
-                    if (rect.left <= right) {
-                        continue;
-                    } else {
-                        right = rect.right;
-                    }
-
-                    if (rect.right - rect.left < micrInfo.minimumCharRect && oneCharRect.left == 0) {
-                        oneCharRect = rect;
-                        continue;
-                    } else if (rect.right - rect.left >= micrInfo.minimumCharRect) {
-                        symbol.symbol = item.first;
-                        symbol.choicesAndConf = choicesAndConf;
-                        symbol.rect = rect;
-                        symbols.add(symbol);
-                    } else {
-                        if (rect.top < oneCharRect.top) {
-                            oneCharRect.top = rect.top;
-                        }
-                        if (rect.bottom > oneCharRect.bottom) {
-                            oneCharRect.bottom = rect.bottom;
-                        }
-                        oneCharRect.right = rect.right;
-                        singleCharRecognitiion.setRectangle(oneCharRect);
-                        String s = singleCharRecognitiion.getUTF8Text();
-                        Log.d("s", s);
-                        if (s.trim().length() > 0) {
-                            if (s.contains("c")) {
-                                symbol.symbol = "c";
-                            } else if (s.contains("d")) {
-                                symbol.symbol = "d";
-                            } else if (s.contains("b")) {
-                                symbol.symbol = "b";
-                            } else {
-                                symbol.symbol = "a";
-                            }
-                            symbol.choicesAndConf = singleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
-                        } else {
-                            Log.d(LOGTAG, "Cannot recognize single char at position of " + rawSymbol.symbol);
-                            symbol.symbol = "-";
-                            symbol.choicesAndConf = new ArrayList<>();
-                            symbol.choicesAndConf.add(new Pair<>("-", 0.0));
-                        }
-                        symbol.rect = oneCharRect;
-                        symbols.add(symbol);
-                        oneCharRect.left = 0;
-                    }
-                    recognizedText = recognizedText + symbol.symbol;
-                    Log.d("conflog ", "" + symbol.choicesAndConf.get(0).second + "; symbol1 " + symbol.choicesAndConf.get(0).first +
-                            "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
-                            (symbol.rect.right - symbol.rect.left) + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
-
+            if (rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) {
+                if (rect.left <= right) {
+                    continue;
+                } else {
+                    right = rect.right;
                 }
+
+                if (rect.right - rect.left < micrInfo.minimumCharRect && oneCharRect.left == 0) {
+                    oneCharRect = rect;
+                    continue;
+                } else if (rect.right - rect.left >= micrInfo.minimumCharRect) {
+                    symbol.symbol = choicesAndConf.get(0).first;
+                    symbol.choicesAndConf = choicesAndConf;
+                    symbol.rect = rect;
+                    symbols.add(symbol);
+                } else {
+                    if (rect.top < oneCharRect.top) {
+                        oneCharRect.top = rect.top;
+                    }
+                    if (rect.bottom > oneCharRect.bottom) {
+                        oneCharRect.bottom = rect.bottom;
+                    }
+                    oneCharRect.right = rect.right;
+                    singleCharRecognitiion.setRectangle(oneCharRect);
+                    String s = singleCharRecognitiion.getUTF8Text();
+                    Log.d("s", s);
+                    if (s.trim().length() > 0) {
+                        if (s.contains("c")) {
+                            symbol.symbol = "c";
+                        } else if (s.contains("d")) {
+                            symbol.symbol = "d";
+                        } else if (s.contains("b")) {
+                            symbol.symbol = "b";
+                        } else {
+                            symbol.symbol = "a";
+                        }
+                        symbol.choicesAndConf = singleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                    } else {
+//                        Log.d(LOGTAG, "Cannot recognize single char at position of " + rawSymbol.symbol);
+                        symbol.symbol = "a";
+                        symbol.choicesAndConf = new ArrayList<>();
+                        symbol.choicesAndConf.add(new Pair<>("a", 0.0));
+                    }
+                    symbol.rect = oneCharRect;
+                    symbols.add(symbol);
+                    oneCharRect.left = 0;
+                }
+                recognizedText = recognizedText + symbol.symbol;
+                Log.d("conflog ", "" + symbol.choicesAndConf.get(0).second + "; symbol1 " + symbol.choicesAndConf.get(0).first +
+                        "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
+                        (symbol.rect.right - symbol.rect.left) + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
+
+
             }
         }
 
