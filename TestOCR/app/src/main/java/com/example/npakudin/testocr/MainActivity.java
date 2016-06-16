@@ -39,7 +39,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        TextRec.createMicrTessData( getApplicationContext());
+        TextRec.createMicrTessData(getApplicationContext());
 
         textViewRes = (TextView) findViewById(R.id.textViewRes);
         listView = (ListView) findViewById(R.id.listview);
@@ -124,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
                 Bitmap res = TextRec.prepareImage(src);
-                TessBaseAPI rawRecognize=TextRec.recognize(res);
+                TessBaseAPI rawRecognize = TextRec.recognize(res);
                 TextRec.MicrInfo micrInfo = TextRec.findBorders(rawRecognize);
                 CheckData checkData = TextRec.improve(micrInfo, res, rawRecognize);
                 checkData.res = TextRec.drawRecText(res, scale, checkData.symbols);

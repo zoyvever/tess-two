@@ -9,6 +9,7 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.Log;
 import android.util.Pair;
+
 import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
 import com.googlecode.leptonica.android.ReadFile;
@@ -17,6 +18,7 @@ import com.googlecode.leptonica.android.Skew;
 import com.googlecode.leptonica.android.WriteFile;
 import com.googlecode.tesseract.android.ResultIterator;
 import com.googlecode.tesseract.android.TessBaseAPI;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -151,21 +153,21 @@ public class TextRec {
     }
 
     public static TessBaseAPI initTessBaseApi() {
-        TessBaseAPI baseApi= null;
+        TessBaseAPI baseApi = null;
         baseApi = new TessBaseAPI();
         baseApi.init("/storage/extSdCard/Android/data/com.example.npakudin.testocr/cache/", "mcr");
         return baseApi;
     }
 
-    public static TessBaseAPI recognize( Bitmap bm){
-        TessBaseAPI baseApi=initTessBaseApi();
+    public static TessBaseAPI recognize(Bitmap bm) {
+        TessBaseAPI baseApi = initTessBaseApi();
         baseApi.setImage(bm);
         return baseApi;
     }
 
-    public static  Bitmap prepareImage(Bitmap bm) {
+    public static Bitmap prepareImage(Bitmap bm) {
         float f = 0;
-        TessBaseAPI baseApi= initTessBaseApi();
+        TessBaseAPI baseApi = initTessBaseApi();
         String recognizedText = "";
         Bitmap res;
         do {
@@ -177,8 +179,8 @@ public class TextRec {
             Float s = Skew.findSkew(imag);
             res = WriteFile.writeBitmap(Rotate.rotate(imag, s));
             baseApi.setImage(res);
-            recognizedText =baseApi.getUTF8Text();
-            Log.d("rhere", ""+recognizedText);
+            recognizedText = baseApi.getUTF8Text();
+            Log.d("rhere", "" + recognizedText);
             f = f + (float) 0.1;
         } while (f < (float) 0.6 && !recognizedText.matches("(.*\\n)*.{15,30}(.*\\n*)*"));
 
@@ -212,7 +214,7 @@ public class TextRec {
         List<Symbol> symbols = new ArrayList();
         ResultIterator resultIterator = baseApi.getResultIterator();
 
-        TessBaseAPI syngleCharRecognitiion= initTessBaseApi();
+        TessBaseAPI syngleCharRecognitiion = initTessBaseApi();
         syngleCharRecognitiion.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
         syngleCharRecognitiion.setImage(bm);
 
@@ -254,22 +256,20 @@ public class TextRec {
                             symbol.symbol = "c";
                         } else if (s.matches(".*d.*")) {
                             symbol.symbol = "d";
-                        }else if (s.matches(".*b.*"))
-                        {
-                                symbol.symbol="b";
-                        }
-                        else  {
-                          symbol.symbol = "a";
+                        } else if (s.matches(".*b.*")) {
+                            symbol.symbol = "b";
+                        } else {
+                            symbol.symbol = "a";
                         }
                         symbol.choicesAndConf = syngleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
                         symbol.rect = oneCharRect;
                         symbols.add(symbol);
                         oneCharRect.left = 0;
                     }
-                recognizedText = recognizedText + symbol.symbol;
-                Log.d("conflog ", "" + symbol.choicesAndConf.get(0).second + "; symbol1 " + symbol.choicesAndConf.get(0).first +
-                        "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
-                        (symbol.rect.right - symbol.rect.left) + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
+                    recognizedText = recognizedText + symbol.symbol;
+                    Log.d("conflog ", "" + symbol.choicesAndConf.get(0).second + "; symbol1 " + symbol.choicesAndConf.get(0).first +
+                            "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
+                            (symbol.rect.right - symbol.rect.left) + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
 
                 }
             }
