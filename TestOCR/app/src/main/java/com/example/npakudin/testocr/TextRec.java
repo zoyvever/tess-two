@@ -268,11 +268,11 @@ public class TextRec {
                         String s = singleCharRecognitiion.getUTF8Text();
                         Log.d("s", s);
                         if (s.trim().length() > 0) {
-                            if (s.matches(".*c.*")) {
+                            if (s.contains("c")) {
                                 symbol.symbol = "c";
-                            } else if (s.matches(".*d.*")) {
+                            } else if (s.contains("d")) {
                                 symbol.symbol = "d";
-                            } else if (s.matches(".*b.*")) {
+                            } else if (s.contains("b")) {
                                 symbol.symbol = "b";
                             } else {
                                 symbol.symbol = "a";
