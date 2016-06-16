@@ -97,6 +97,7 @@ public class TextRec {
         return trueBorder;
     }
 
+    private static String mcrFilePath = null;
     public static File init(Context context) {
         File baseDir = getCacheDir(context);
         File tessdata = new File(baseDir, "tessdata");
@@ -143,12 +144,14 @@ public class TextRec {
             Log.e(LOGTAG, "copy", e);
         }
         Log.wtf(LOGTAG, "file: " + file.exists() + " len : " + file.length());
+
+        mcrFilePath = baseDir.getAbsolutePath();
         return baseDir;
     }
 
     public static TessBaseAPI createTessBaseApi() {
         TessBaseAPI baseApi = new TessBaseAPI();
-        baseApi.init("/storage/extSdCard/Android/data/com.example.npakudin.testocr/cache/", "mcr");
+        baseApi.init(mcrFilePath, "mcr");
         return baseApi;
     }
 
