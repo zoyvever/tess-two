@@ -34,15 +34,11 @@ public class TextRec {
 
     public static class Symbol {
         public String symbol;
-        public Double confidence;
-
         public List<Pair<String, Double>> choicesAndConf;
         public Rect rect;
     }
 
     public static class MicrInfo {
-
-
         public int top = 0;
         public int bottom = 0;
         public int minimumCharRect = 0;
@@ -51,9 +47,7 @@ public class TextRec {
             this.top = top;
             this.bottom = bottom;
             this.minimumCharRect = minimumCharWidth;
-
         }
-
     }
 
     public static File getCacheDir(Context context) {
@@ -137,7 +131,7 @@ public class TextRec {
                 }
             } finally {
                 try {
-                    if (outputStream != null) outputStream.close();
+                    outputStream.close();
                 } catch (IOException ignored) {
                 }
                 try {
@@ -186,23 +180,23 @@ public class TextRec {
     }
 
     public static Bitmap prepareImage(Bitmap bm) {
-        float f = 0;
+        float threshold = 0;
         TessBaseAPI baseApi = createTessBaseApi();
-        String recognizedText = "";
+        String recognizedText;
         Bitmap res;
         do {
             Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
                     3000, 3000,
                     3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
-                    Binarize.OTSU_SCORE_FRACTION + f);
+                    Binarize.OTSU_SCORE_FRACTION + threshold);
 
             Float s = Skew.findSkew(imag);
             res = WriteFile.writeBitmap(Rotate.rotate(imag, s));
             baseApi.setImage(res);
             recognizedText = baseApi.getUTF8Text();
             Log.d("rhere", "" + recognizedText);
-            f = f + (float) 0.1;
-        } while (f < (float) 0.6 && !recognizedText.matches("(.*\\n)*.{15,30}(.*\\n*)*"));
+            threshold = threshold + (float) 0.1;
+        } while (threshold < (float) 0.6 && !recognizedText.matches("(.*\\n)*.{15,30}(.*\\n*)*"));
 
         return res;
     }
@@ -230,11 +224,11 @@ public class TextRec {
     }
 
     public static CheckData improve(MicrInfo micrInfo, Bitmap bm, List<Symbol> rawSymbols) {
-        List<Symbol> symbols = new ArrayList();
+        List<Symbol> symbols = new ArrayList<>();
 
-        TessBaseAPI syngleCharRecognitiion = createTessBaseApi();
-        syngleCharRecognitiion.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
-        syngleCharRecognitiion.setImage(bm);
+        TessBaseAPI singleCharRecognitiion = createTessBaseApi();
+        singleCharRecognitiion.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
+        singleCharRecognitiion.setImage(bm);
 
         String recognizedText = "";
         int right = 0;
@@ -267,8 +261,8 @@ public class TextRec {
                             oneCharRect.bottom = rect.bottom;
                         }
                         oneCharRect.right = rect.right;
-                        syngleCharRecognitiion.setRectangle(oneCharRect);
-                        String s = syngleCharRecognitiion.getUTF8Text();
+                        singleCharRecognitiion.setRectangle(oneCharRect);
+                        String s = singleCharRecognitiion.getUTF8Text();
                         Log.d("s", s);
                         if (s.matches(".*c.*")) {
                             symbol.symbol = "c";
@@ -279,7 +273,7 @@ public class TextRec {
                         } else {
                             symbol.symbol = "a";
                         }
-                        symbol.choicesAndConf = syngleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                        symbol.choicesAndConf = singleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
                         symbol.rect = oneCharRect;
                         symbols.add(symbol);
                         oneCharRect.left = 0;
