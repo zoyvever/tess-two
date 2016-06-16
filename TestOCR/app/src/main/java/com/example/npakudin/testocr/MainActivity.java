@@ -123,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
                 Bitmap res = TextRec.prepareImage(src);
-                TessBaseAPI rawRecognize = TextRec.recognize(res);
+                List<TextRec.Symbol> rawRecognize = TextRec.rawRecognize(res);
                 TextRec.MicrInfo micrInfo = TextRec.findBorders(rawRecognize);
                 CheckData checkData = TextRec.improve(micrInfo, res, rawRecognize);
                 checkData.res = TextRec.drawRecText(res, scale, checkData.symbols);

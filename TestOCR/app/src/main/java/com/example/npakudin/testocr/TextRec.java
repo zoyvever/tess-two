@@ -158,10 +158,31 @@ public class TextRec {
         return baseApi;
     }
 
-    public static TessBaseAPI recognize(Bitmap bm) {
+    public static List<Symbol> rawRecognize(Bitmap bm) {
         TessBaseAPI baseApi = createTessBaseApi();
         baseApi.setImage(bm);
-        return baseApi;
+
+        List<Symbol> symbols = new ArrayList<>();
+
+        if (baseApi.getUTF8Text().trim().length() > 0) {
+            // in other case app fails on getting iterator on empty image
+
+            ResultIterator resultIterator = baseApi.getResultIterator();
+
+            do {
+                Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
+
+                    Symbol symbol = new Symbol();
+                    symbol.symbol = item.first;
+                    symbol.choicesAndConf = choicesAndConf;
+                    symbol.rect = rect;
+                    symbols.add(symbol);
+                }
+            } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
+        }
+        return symbols;
     }
 
     public static Bitmap prepareImage(Bitmap bm) {
@@ -186,16 +207,15 @@ public class TextRec {
         return res;
     }
 
-    public static MicrInfo findBorders(TessBaseAPI rawRec) {
+    public static MicrInfo findBorders(List<Symbol> rawSymbols) {
         int min = 1000;
         HashMap<Integer, Integer> bottom = new HashMap<>();
         HashMap<Integer, Integer> top = new HashMap<>();
-        rawRec.getUTF8Text();
-        ResultIterator resultIterator = rawRec.getResultIterator();
-        do {
-            Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
 
-            for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
+        for (Symbol rawSymbol: rawSymbols) {
+            Rect rect = rawSymbol.rect;
+
+            for (Pair<String, Double> item : rawSymbol.choicesAndConf) {
                 if (item.second > 73) {
                     if ((rect.right - rect.left) < min) {
                         min = rect.right - rect.left;
@@ -204,14 +224,13 @@ public class TextRec {
                     top = fillTheMap(top, rect.top);
                 }
             }
-        } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
+        }
         int pogr = (int) (0.6 * (findMostFrequentItem(top) - (findMostFrequentItem(bottom))));
         return new MicrInfo(findMostFrequentItem(top) + pogr, findMostFrequentItem(bottom) - pogr, min);
     }
 
-    public static CheckData improve(MicrInfo micrInfo, Bitmap bm, TessBaseAPI baseApi) {
+    public static CheckData improve(MicrInfo micrInfo, Bitmap bm, List<Symbol> rawSymbols) {
         List<Symbol> symbols = new ArrayList();
-        ResultIterator resultIterator = baseApi.getResultIterator();
 
         TessBaseAPI syngleCharRecognitiion = createTessBaseApi();
         syngleCharRecognitiion.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
@@ -220,11 +239,11 @@ public class TextRec {
         String recognizedText = "";
         int right = 0;
         Rect oneCharRect = new Rect(0, 0, 0, 0);
-        do {
-            Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
-            List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+        for (Symbol rawSymbol: rawSymbols) {
+            Rect rect = rawSymbol.rect;
+            List<Pair<String, Double>> choicesAndConf = rawSymbol.choicesAndConf;
             Symbol symbol = new Symbol();
-            for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
+            for (Pair<String, Double> item : rawSymbol.choicesAndConf) {
                 if (rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) {
                     if (rect.left <= right) {
                         continue;
@@ -272,7 +291,7 @@ public class TextRec {
 
                 }
             }
-        } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
+        }
 
         return new CheckData(bm, recognizedText, symbols);
     }
