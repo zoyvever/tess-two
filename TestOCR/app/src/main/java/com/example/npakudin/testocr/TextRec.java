@@ -100,6 +100,9 @@ public class TextRec {
     private static String mcrFilePath = null;
     public static File init(Context context) {
         File baseDir = getCacheDir(context);
+        if (baseDir == null) {
+            throw new IllegalStateException("Cannot access temporary dir");
+        }
         File tessdata = new File(baseDir, "tessdata");
         File file = new File(tessdata, "mcr.traineddata");
 
@@ -313,13 +316,12 @@ public class TextRec {
                 textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
                 text = text + symbol.choicesAndConf.get(i).first;
 
-                canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - i * 200, textPaint);
+                canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - (symbol.rect.height() + 20) * i, textPaint);
 
                 String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
                 Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
                 confPaint.setColor(Color.rgb(0, 0, 255));
                 confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
-                confPaint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
 //                Log.d("conflog ", "" + symbol.choicesAndConf.get(i).second + "; symbol1 " + symbol.choicesAndConf.get(i).first +
 //                        "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
 //                        (symbol.rect.right - symbol.rect.left)+" top,bottom: "+symbol.rect.top+" , "+symbol.rect.bottom);
@@ -328,10 +330,12 @@ public class TextRec {
 
                 Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
                 borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
+                borderRectPaint.setStyle(Paint.Style.STROKE);
                 if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
                     prevRight = 0;
                 }
-                canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
+                //canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
+                canvas.drawRect(symbol.rect, borderRectPaint);
                 prevRight = symbol.rect.right;
                 prevBottom = symbol.rect.bottom;
             }
