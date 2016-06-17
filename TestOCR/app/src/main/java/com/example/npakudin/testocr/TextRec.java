@@ -42,11 +42,13 @@ public class TextRec {
         public int top = 0;
         public int bottom = 0;
         public int minimumCharRect = 0;
+        public int inLineRecognized=0;
 
-        public MicrInfo(int top, int bottom, int minimumCharWidth) {
+        public MicrInfo(int top, int bottom, int minimumCharWidth,int inLineRecognized) {
             this.top = top;
             this.bottom = bottom;
             this.minimumCharRect = minimumCharWidth;
+            this.inLineRecognized=inLineRecognized;
         }
     }
 
@@ -88,6 +90,7 @@ public class TextRec {
     public static int findMostFrequentItem(HashMap<Integer, Integer> map) {
         int trueBorder = 0;
         int freq = 0;
+
         for (HashMap.Entry<Integer, Integer> entry : map.entrySet()) {
             if (entry.getValue() > freq) {
                 trueBorder = entry.getKey();
@@ -95,6 +98,17 @@ public class TextRec {
             }
         }
         return trueBorder;
+    }
+
+    public static int findTheLine(HashMap<Integer, Integer> map, int mostFrequentItem){
+        int cuantityOfRecognizedItems=0;
+        for (HashMap.Entry<Integer, Integer> entry : map.entrySet()) {
+            if(entry.getKey()>mostFrequentItem-5 && entry.getKey()<mostFrequentItem+5){
+                cuantityOfRecognizedItems=cuantityOfRecognizedItems+entry.getValue();
+            }
+        }
+        Log.d(LOGTAG, "cuantity of recognized items in line: "+cuantityOfRecognizedItems);
+        return cuantityOfRecognizedItems;
     }
 
     private static String mcrFilePath = null;
@@ -186,24 +200,19 @@ public class TextRec {
         return symbols;
     }
 
-    public static Bitmap prepareImage(Bitmap bm) {
-        float threshold = 0;
-        TessBaseAPI baseApi = createTessBaseApi();
-        String recognizedText;
+    public static Bitmap prepareImage(Bitmap bm, float threshold) {
+        //        TessBaseAPI baseApi = createTessBaseApi();
+//        String recognizedText;
         Bitmap res;
-        do {
-            Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
-                    3000, 3000,
-                    3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
-                    Binarize.OTSU_SCORE_FRACTION + threshold);
-
-            Float s = Skew.findSkew(imag);
-            res = WriteFile.writeBitmap(Rotate.rotate(imag, s));
-            baseApi.setImage(res);
-            recognizedText = baseApi.getUTF8Text();
-            Log.d("rhere", "" + recognizedText);
-            threshold = threshold + (float) 0.1;
-        } while (threshold < (float) 0.6 && !recognizedText.matches("(.*\\n)*.{15,30}(.*\\n*)*"));
+        Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
+                3000, 3000,
+                3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
+                Binarize.OTSU_SCORE_FRACTION + threshold);
+        Float s = Skew.findSkew(imag);
+        res = WriteFile.writeBitmap(Rotate.rotate(imag, s));
+//            baseApi.setImage(res);
+//            recognizedText = baseApi.getUTF8Text();
+//            Log.d("rhere", "" + recognizedText);
 
         return res;
     }
@@ -216,7 +225,7 @@ public class TextRec {
         for (Symbol rawSymbol : rawSymbols) {
             Rect rect = rawSymbol.rect;
 
-            if (rawSymbol.choicesAndConf.get(0).second > 73) {
+            if (rawSymbol.choicesAndConf.get(0).second > 70) {
                 if ((rect.right - rect.left) < min) {
                     min = rect.right - rect.left;
                 }
@@ -224,8 +233,11 @@ public class TextRec {
                 top = fillTheMap(top, rect.top);
             }
         }
-        int pogr = (int) (0.6 * (findMostFrequentItem(top) - (findMostFrequentItem(bottom))));
-        return new MicrInfo(findMostFrequentItem(top) + pogr, findMostFrequentItem(bottom) - pogr, min);
+        int topBorder= findMostFrequentItem(top);
+        int bottomBorder= findMostFrequentItem(bottom);
+        int inLineRecognized= findTheLine(top, topBorder);
+        int pogr = (int) (0.6 * (topBorder - bottomBorder));
+        return new MicrInfo(topBorder + pogr, bottomBorder - pogr, min, inLineRecognized);
     }
 
     public static CheckData improve(MicrInfo micrInfo, Bitmap bm, List<Symbol> rawSymbols) {

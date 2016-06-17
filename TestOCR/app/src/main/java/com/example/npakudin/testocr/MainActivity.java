@@ -119,10 +119,18 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, file);
                 istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
+                float threshold=0;
 
-                Bitmap res = TextRec.prepareImage(src);
-                List<TextRec.Symbol> rawRecognize = TextRec.rawRecognize(res);
-                TextRec.MicrInfo micrInfo = TextRec.findBorders(rawRecognize);
+                Bitmap res=null;
+                TextRec.MicrInfo micrInfo=null;
+                List<TextRec.Symbol> rawRecognize=null;
+                do {
+                    res = TextRec.prepareImage(src, threshold);
+                    rawRecognize = TextRec.rawRecognize(res);
+                    micrInfo = TextRec.findBorders(rawRecognize);
+                    threshold=threshold+(float) 0.1;
+                }while(threshold<(float)0.5 && micrInfo.inLineRecognized<8);
+
                 CheckData checkData = TextRec.improve(micrInfo, res, rawRecognize);
                 checkData.res = TextRec.drawRecText(res, scale, checkData.symbols);
 
