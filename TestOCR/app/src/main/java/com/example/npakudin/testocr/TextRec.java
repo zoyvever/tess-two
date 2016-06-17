@@ -108,7 +108,7 @@ public class TextRec {
                 cuantityOfRecognizedItems = cuantityOfRecognizedItems + entry.getValue();
             }
         }
-        Log.d(LOGTAG, "cuantity of recognized items in line: " + cuantityOfRecognizedItems);
+        Log.d(LOGTAG, "quantity of recognized items in line: " + cuantityOfRecognizedItems);
         return cuantityOfRecognizedItems;
     }
 
@@ -188,8 +188,6 @@ public class TextRec {
             do {
                 Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
                 List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
-
-
                 Symbol symbol = new Symbol();
                 symbol.symbol = choicesAndConf.get(0).first;
                 symbol.сonfidence = choicesAndConf.get(0).second;
@@ -201,8 +199,6 @@ public class TextRec {
     }
 
     public static Bitmap prepareImage(Bitmap bm, double threshold) {
-        //        TessBaseAPI baseApi = createTessBaseApi();
-//        String recognizedText;
         Bitmap res;
         Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
                 3000, 3000,
@@ -210,9 +206,6 @@ public class TextRec {
                 Binarize.OTSU_SCORE_FRACTION + (float) threshold);
         Float s = Skew.findSkew(imag);
         res = WriteFile.writeBitmap(Rotate.rotate(imag, s));
-//            baseApi.setImage(res);
-//            recognizedText = baseApi.getUTF8Text();
-//            Log.d("rhere", "" + recognizedText);
 
         return res;
     }
@@ -295,7 +288,6 @@ public class TextRec {
                         }
                         symbol.сonfidence = singleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
                     } else {
-//                        Log.d(LOGTAG, "Cannot recognize single char at position of " + rawSymbol.symbol);
                         symbol.symbol = "a";
                         symbol.сonfidence = 0.0;
                     }
@@ -317,7 +309,6 @@ public class TextRec {
 
     public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols) {
         Canvas canvas = new Canvas(bm);
-        float prevRight = 0;
         float prevBottom = 0;
         String text = "";
         Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -325,28 +316,20 @@ public class TextRec {
         for (Symbol symbol : symbols) {
             textPaint.setTextSize((int) (symbol.rect.height() * scale / 1.5));
             text = text + symbol.symbol;
-
             canvas.drawText(symbol.symbol, symbol.rect.left, symbol.rect.top - (symbol.rect.height() + 10), textPaint);
 
             String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.сonfidence);
             Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             confPaint.setColor(Color.rgb(0, 0, 255));
             confPaint.setTextSize((int) (symbol.rect.height() * scale / 3));
-//                Log.d("conflog ", "" + symbol.choicesAndConf.get(i).second + "; symbol1 " + symbol.choicesAndConf.get(i).first +
-//                        "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
-//                        (symbol.rect.right - symbol.rect.left)+" top,bottom: "+symbol.rect.top+" , "+symbol.rect.bottom);
-
             canvas.drawText(conf, symbol.rect.left, symbol.rect.top - (symbol.rect.height() - 10), confPaint);
 
             Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
             borderRectPaint.setStyle(Paint.Style.STROKE);
             if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
-                prevRight = 0;
             }
-            //canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
             canvas.drawRect(symbol.rect, borderRectPaint);
-            prevRight = symbol.rect.right;
             prevBottom = symbol.rect.bottom;
 
         }
