@@ -233,20 +233,12 @@ public class TextRec {
         return new MicrInfo(topBorder + pogr, bottomBorder - pogr, min, inLineRecognized);
     }
 
-    public static CheckData improve(MicrInfo micrInfo, Bitmap bm, List<Symbol> rawSymbols) {
-        List<Symbol> symbols = new ArrayList<>();
-
-        TessBaseAPI singleCharRecognitiion = createTessBaseApi();
-        singleCharRecognitiion.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
-        singleCharRecognitiion.setImage(bm);
-
-        String recognizedText = "";
+    public static List<Symbol> filterTheline(List<Symbol> rawSymbols, MicrInfo micrInfo) {
         int right = 0;
-        Rect oneCharRect = null;
-        Log.d("rect", "minimum " + micrInfo.minimumCharWidth);
+        List<Symbol> symbols = new ArrayList<>();
         for (Symbol rawSymbol : rawSymbols) {
             Rect rect = rawSymbol.rect;
-            Symbol symbol = new Symbol();
+            Symbol symbol;
             if (rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) {
 
                 if (rect.left <= right) {
@@ -255,55 +247,63 @@ public class TextRec {
                 } else {
                     //otherwise remember when it ends for future comparing
                     right = rect.right;
-                }
-                Log.d("rect", "rect: " + rect.width() + ", conf: " + rawSymbol.сonfidence + ", symbol: " + rawSymbol.symbol);
-                if (rect.width() >= micrInfo.minimumCharWidth) {
-                    symbol.symbol = rawSymbol.symbol;
-                    symbol.сonfidence = rawSymbol.сonfidence;
-                    symbol.rect = rect;
+                    symbol = rawSymbol;
                     symbols.add(symbol);
-                } else if (oneCharRect == null) {
-                    oneCharRect = rect;
-                    continue;
-                } else {
-                    if (rect.top < oneCharRect.top) {
-                        oneCharRect.top = rect.top;
-                    }
-                    if (rect.bottom > oneCharRect.bottom) {
-                        oneCharRect.bottom = rect.bottom;
-                    }
-                    oneCharRect.right = rect.right;
-                    singleCharRecognitiion.setRectangle(oneCharRect);
-                    String s = singleCharRecognitiion.getUTF8Text();
-                    Log.d("s", s);
-                    if (s.trim().length() > 0) {
-                        if (s.contains("c")) {
-                            symbol.symbol = "c";
-                        } else if (s.contains("d")) {
-                            symbol.symbol = "d";
-                        } else if (s.contains("b")) {
-                            symbol.symbol = "b";
-                        } else {
-                            symbol.symbol = "a";
-                        }
-                        symbol.сonfidence = singleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
-                    } else {
-                        symbol.symbol = "a";
-                        symbol.сonfidence = 0.0;
-                    }
-                    symbol.rect = oneCharRect;
-                    symbols.add(symbol);
-                    oneCharRect = null;
                 }
-                recognizedText = recognizedText + symbol.symbol;
-                Log.d("conflog ", "" + symbol.сonfidence + "; symbol1 " + symbol.сonfidence +
-                        "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
-                        (symbol.rect.right - symbol.rect.left) + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
-
-
             }
         }
+        return symbols;
+    }
 
+    public static CheckData improve(Bitmap bm, List<Symbol> rawSymbols, MicrInfo micrInfo) {
+        TessBaseAPI singleCharRecognition = createTessBaseApi();
+        singleCharRecognition.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
+        singleCharRecognition.setImage(bm);
+
+        String recognizedText = "";
+        List<Symbol> symbols = new ArrayList<>();
+        Rect oneCharRect = null;
+
+        for (Symbol rawSymbol : rawSymbols) {
+            Symbol symbol = new Symbol();
+            if (rawSymbol.rect.width() >= micrInfo.minimumCharWidth) {
+                symbol = rawSymbol;
+                symbols.add(symbol);
+                recognizedText = recognizedText + symbol.symbol;
+            } else if (oneCharRect == null) {
+                oneCharRect = rawSymbol.rect;
+            } else {
+                if (rawSymbol.rect.top < oneCharRect.top) {
+                    oneCharRect.top = rawSymbol.rect.top;
+                }
+                if (rawSymbol.rect.bottom > oneCharRect.bottom) {
+                    oneCharRect.bottom = rawSymbol.rect.bottom;
+                }
+                oneCharRect.right = rawSymbol.rect.right;
+                singleCharRecognition.setRectangle(oneCharRect);
+                String s = singleCharRecognition.getUTF8Text();
+                Log.d("s", s);
+                if (s.trim().length() > 0) {
+                    if (s.contains("c")) {
+                        symbol.symbol = "c";
+                    } else if (s.contains("d")) {
+                        symbol.symbol = "d";
+                    } else if (s.contains("b")) {
+                        symbol.symbol = "b";
+                    } else {
+                        symbol.symbol = "a";
+                    }
+                    symbol.сonfidence = singleCharRecognition.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
+                } else {
+                    symbol.symbol = "a";
+                    symbol.сonfidence = 0.0;
+                }
+                symbol.rect = oneCharRect;
+                symbols.add(symbol);
+                oneCharRect = null;
+                recognizedText = recognizedText + symbol.symbol;
+            }
+        }
         return new CheckData(bm, recognizedText, symbols);
     }
 

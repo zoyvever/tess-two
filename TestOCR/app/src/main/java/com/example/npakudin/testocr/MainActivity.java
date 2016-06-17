@@ -119,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, file);
                 istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
-                float threshold=0;
+                double threshold=0;
 
                 Bitmap res=null;
                 TextRec.MicrInfo micrInfo=null;
@@ -128,10 +128,11 @@ public class MainActivity extends AppCompatActivity {
                     res = TextRec.prepareImage(src, threshold);
                     rawRecognize = TextRec.rawRecognize(res);
                     micrInfo = TextRec.findBorders(rawRecognize);
-                    threshold=threshold+(float) 0.1;
-                }while(threshold<(float)0.5 && micrInfo.inLineRecognized<8);
+                    threshold=threshold+ 0.1;
+                }while(threshold<0.5 && micrInfo.inLineRecognized<8);
 
-                CheckData checkData = TextRec.improve(micrInfo, res, rawRecognize);
+                rawRecognize=TextRec.filterTheline(rawRecognize,micrInfo);
+                CheckData checkData = TextRec.improve(res, rawRecognize,micrInfo);
                 checkData.res = TextRec.drawRecText(res, scale, checkData.symbols);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
