@@ -41,13 +41,13 @@ public class TextRec {
     public static class MicrInfo {
         public int top = 0;
         public int bottom = 0;
-        public int minimumCharRect = 0;
+        public int minimumCharWidth = 0;
         public int inLineRecognized=0;
 
         public MicrInfo(int top, int bottom, int minimumCharWidth,int inLineRecognized) {
             this.top = top;
             this.bottom = bottom;
-            this.minimumCharRect = minimumCharWidth;
+            this.minimumCharWidth = minimumCharWidth;
             this.inLineRecognized=inLineRecognized;
         }
     }
@@ -249,26 +249,28 @@ public class TextRec {
 
         String recognizedText = "";
         int right = 0;
-        Rect oneCharRect = new Rect(0, 0, 0, 0);
+        Rect oneCharRect = null;
         for (Symbol rawSymbol : rawSymbols) {
             Rect rect = rawSymbol.rect;
             List<Pair<String, Double>> choicesAndConf = rawSymbol.choicesAndConf;
             Symbol symbol = new Symbol();
             if (rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) {
+
                 if (rect.left <= right) {
+                    //if the rectangle starts before the last one ends- throw it away
                     continue;
                 } else {
+                    //otherwise remember when it ends for future comparing
                     right = rect.right;
                 }
 
-                if (rect.right - rect.left < micrInfo.minimumCharRect && oneCharRect.left == 0) {
-                    oneCharRect = rect;
-                    continue;
-                } else if (rect.right - rect.left >= micrInfo.minimumCharRect) {
+                if (rect.width() > micrInfo.minimumCharWidth) {
                     symbol.symbol = choicesAndConf.get(0).first;
                     symbol.choicesAndConf = choicesAndConf;
                     symbol.rect = rect;
-                    symbols.add(symbol);
+                    symbols.add(symbol);                } else if (oneCharRect == null) {
+                    oneCharRect = rect;
+                    continue;
                 } else {
                     if (rect.top < oneCharRect.top) {
                         oneCharRect.top = rect.top;
@@ -299,7 +301,7 @@ public class TextRec {
                     }
                     symbol.rect = oneCharRect;
                     symbols.add(symbol);
-                    oneCharRect.left = 0;
+                    oneCharRect=null;
                 }
                 recognizedText = recognizedText + symbol.symbol;
                 Log.d("conflog ", "" + symbol.choicesAndConf.get(0).second + "; symbol1 " + symbol.choicesAndConf.get(0).first +
