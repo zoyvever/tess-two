@@ -266,20 +266,18 @@ public class TextRec {
 
         for (Symbol rawSymbol : rawSymbols) {
             Symbol symbol = new Symbol();
-            if (rawSymbol.rect.width() >= micrInfo.minimumCharWidth) {
-                symbol = rawSymbol;
-                symbols.add(symbol);
-                recognizedText = recognizedText + symbol.symbol;
-            } else if (oneCharRect == null) {
-                oneCharRect = rawSymbol.rect;
-            } else {
+            if (oneCharRect != null) {
+                //if we already have first part of unrecognized letter then
                 if (rawSymbol.rect.top < oneCharRect.top) {
                     oneCharRect.top = rawSymbol.rect.top;
+                    //use lowest top
                 }
                 if (rawSymbol.rect.bottom > oneCharRect.bottom) {
                     oneCharRect.bottom = rawSymbol.rect.bottom;
+                    //use biggest bottom
                 }
                 oneCharRect.right = rawSymbol.rect.right;
+                //use value for 'right' from the last rect
                 singleCharRecognition.setRectangle(oneCharRect);
                 String s = singleCharRecognition.getUTF8Text();
                 Log.d("s", s);
@@ -299,10 +297,18 @@ public class TextRec {
                     symbol.сonfidence = 0.0;
                 }
                 symbol.rect = oneCharRect;
-                symbols.add(symbol);
                 oneCharRect = null;
-                recognizedText = recognizedText + symbol.symbol;
+            } else if (rawSymbol.rect.width() < micrInfo.minimumCharWidth) {
+                //if we dont have first part of letter in oneCharRect and the width of the symbl says that that it is here
+                oneCharRect = rawSymbol.rect;
+                continue;
+            } else {
+                //if everything is normal
+                symbol = rawSymbol;
             }
+
+            symbols.add(symbol);
+            recognizedText = recognizedText + symbol.symbol;
         }
         return new CheckData(bm, recognizedText, symbols);
     }
