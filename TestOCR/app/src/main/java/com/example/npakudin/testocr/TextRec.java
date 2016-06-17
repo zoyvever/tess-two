@@ -34,21 +34,22 @@ public class TextRec {
 
     public static class Symbol {
         public String symbol;
-        public List<Pair<String, Double>> choicesAndConf;
+        public double сonfidence;
         public Rect rect;
+
     }
 
     public static class MicrInfo {
         public int top = 0;
         public int bottom = 0;
         public int minimumCharWidth = 0;
-        public int inLineRecognized=0;
+        public int inLineRecognized = 0;
 
-        public MicrInfo(int top, int bottom, int minimumCharWidth,int inLineRecognized) {
+        public MicrInfo(int top, int bottom, int minimumCharWidth, int inLineRecognized) {
             this.top = top;
             this.bottom = bottom;
             this.minimumCharWidth = minimumCharWidth;
-            this.inLineRecognized=inLineRecognized;
+            this.inLineRecognized = inLineRecognized;
         }
     }
 
@@ -100,14 +101,14 @@ public class TextRec {
         return trueBorder;
     }
 
-    public static int findTheLine(HashMap<Integer, Integer> map, int mostFrequentItem){
-        int cuantityOfRecognizedItems=0;
+    public static int findTheLine(HashMap<Integer, Integer> map, int mostFrequentItem) {
+        int cuantityOfRecognizedItems = 0;
         for (HashMap.Entry<Integer, Integer> entry : map.entrySet()) {
-            if(entry.getKey()>mostFrequentItem-5 && entry.getKey()<mostFrequentItem+5){
-                cuantityOfRecognizedItems=cuantityOfRecognizedItems+entry.getValue();
+            if (entry.getKey() > mostFrequentItem - 5 && entry.getKey() < mostFrequentItem + 5) {
+                cuantityOfRecognizedItems = cuantityOfRecognizedItems + entry.getValue();
             }
         }
-        Log.d(LOGTAG, "cuantity of recognized items in line: "+cuantityOfRecognizedItems);
+        Log.d(LOGTAG, "cuantity of recognized items in line: " + cuantityOfRecognizedItems);
         return cuantityOfRecognizedItems;
     }
 
@@ -187,27 +188,26 @@ public class TextRec {
             do {
                 Rect rect = resultIterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
                 List<Pair<String, Double>> choicesAndConf = resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
-                for (Pair<String, Double> item : resultIterator.getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)) {
 
-                    Symbol symbol = new Symbol();
-                    symbol.symbol = item.first;
-                    symbol.choicesAndConf = choicesAndConf;
-                    symbol.rect = rect;
-                    symbols.add(symbol);
-                }
+
+                Symbol symbol = new Symbol();
+                symbol.symbol = choicesAndConf.get(0).first;
+                symbol.сonfidence = choicesAndConf.get(0).second;
+                symbol.rect = rect;
+                symbols.add(symbol);
             } while (resultIterator.next(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL));
         }
         return symbols;
     }
 
-    public static Bitmap prepareImage(Bitmap bm, float threshold) {
+    public static Bitmap prepareImage(Bitmap bm, double threshold) {
         //        TessBaseAPI baseApi = createTessBaseApi();
 //        String recognizedText;
         Bitmap res;
         Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
                 3000, 3000,
                 3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
-                Binarize.OTSU_SCORE_FRACTION + threshold);
+                Binarize.OTSU_SCORE_FRACTION + (float) threshold);
         Float s = Skew.findSkew(imag);
         res = WriteFile.writeBitmap(Rotate.rotate(imag, s));
 //            baseApi.setImage(res);
@@ -225,7 +225,7 @@ public class TextRec {
         for (Symbol rawSymbol : rawSymbols) {
             Rect rect = rawSymbol.rect;
 
-            if (rawSymbol.choicesAndConf.get(0).second > 70) {
+            if (rawSymbol.сonfidence > 70) {
                 if ((rect.right - rect.left) < min) {
                     min = rect.right - rect.left;
                 }
@@ -233,9 +233,9 @@ public class TextRec {
                 top = fillTheMap(top, rect.top);
             }
         }
-        int topBorder= findMostFrequentItem(top);
-        int bottomBorder= findMostFrequentItem(bottom);
-        int inLineRecognized= findTheLine(top, topBorder);
+        int topBorder = findMostFrequentItem(top);
+        int bottomBorder = findMostFrequentItem(bottom);
+        int inLineRecognized = findTheLine(top, topBorder);
         int pogr = (int) (0.6 * (topBorder - bottomBorder));
         return new MicrInfo(topBorder + pogr, bottomBorder - pogr, min, inLineRecognized);
     }
@@ -250,9 +250,9 @@ public class TextRec {
         String recognizedText = "";
         int right = 0;
         Rect oneCharRect = null;
+        Log.d("rect", "minimum " + micrInfo.minimumCharWidth);
         for (Symbol rawSymbol : rawSymbols) {
             Rect rect = rawSymbol.rect;
-            List<Pair<String, Double>> choicesAndConf = rawSymbol.choicesAndConf;
             Symbol symbol = new Symbol();
             if (rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) {
 
@@ -263,12 +263,13 @@ public class TextRec {
                     //otherwise remember when it ends for future comparing
                     right = rect.right;
                 }
-
-                if (rect.width() > micrInfo.minimumCharWidth) {
-                    symbol.symbol = choicesAndConf.get(0).first;
-                    symbol.choicesAndConf = choicesAndConf;
+                Log.d("rect", "rect: " + rect.width() + ", conf: " + rawSymbol.сonfidence + ", symbol: " + rawSymbol.symbol);
+                if (rect.width() >= micrInfo.minimumCharWidth) {
+                    symbol.symbol = rawSymbol.symbol;
+                    symbol.сonfidence = rawSymbol.сonfidence;
                     symbol.rect = rect;
-                    symbols.add(symbol);                } else if (oneCharRect == null) {
+                    symbols.add(symbol);
+                } else if (oneCharRect == null) {
                     oneCharRect = rect;
                     continue;
                 } else {
@@ -292,19 +293,18 @@ public class TextRec {
                         } else {
                             symbol.symbol = "a";
                         }
-                        symbol.choicesAndConf = singleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL);
+                        symbol.сonfidence = singleCharRecognitiion.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
                     } else {
 //                        Log.d(LOGTAG, "Cannot recognize single char at position of " + rawSymbol.symbol);
                         symbol.symbol = "a";
-                        symbol.choicesAndConf = new ArrayList<>();
-                        symbol.choicesAndConf.add(new Pair<>("a", 0.0));
+                        symbol.сonfidence = 0.0;
                     }
                     symbol.rect = oneCharRect;
                     symbols.add(symbol);
-                    oneCharRect=null;
+                    oneCharRect = null;
                 }
                 recognizedText = recognizedText + symbol.symbol;
-                Log.d("conflog ", "" + symbol.choicesAndConf.get(0).second + "; symbol1 " + symbol.choicesAndConf.get(0).first +
+                Log.d("conflog ", "" + symbol.сonfidence + "; symbol1 " + symbol.сonfidence +
                         "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
                         (symbol.rect.right - symbol.rect.left) + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
 
@@ -322,35 +322,33 @@ public class TextRec {
         String text = "";
         Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         textPaint.setColor(Color.rgb(0xff, 0, 0));
-        Log.d("xxx", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
         for (Symbol symbol : symbols) {
-            for (int i = 0; i < symbol.choicesAndConf.size(); i++) {
-                textPaint.setTextSize((int) (symbol.rect.height() * scale / 2));
-                text = text + symbol.choicesAndConf.get(i).first;
+            textPaint.setTextSize((int) (symbol.rect.height() * scale / 1.5));
+            text = text + symbol.symbol;
 
-                canvas.drawText(symbol.choicesAndConf.get(i).first, symbol.rect.left, symbol.rect.top - (symbol.rect.height() + 20) * i, textPaint);
+            canvas.drawText(symbol.symbol, symbol.rect.left, symbol.rect.top - (symbol.rect.height() + 10), textPaint);
 
-                String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.choicesAndConf.get(i).second);
-                Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                confPaint.setColor(Color.rgb(0, 0, 255));
-                confPaint.setTextSize((int) (symbol.rect.height() * scale / 4));
+            String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.сonfidence);
+            Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            confPaint.setColor(Color.rgb(0, 0, 255));
+            confPaint.setTextSize((int) (symbol.rect.height() * scale / 3));
 //                Log.d("conflog ", "" + symbol.choicesAndConf.get(i).second + "; symbol1 " + symbol.choicesAndConf.get(i).first +
 //                        "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " +
 //                        (symbol.rect.right - symbol.rect.left)+" top,bottom: "+symbol.rect.top+" , "+symbol.rect.bottom);
 
-                canvas.drawText(conf, symbol.rect.left, symbol.rect.top - symbol.rect.height() * (i + 1), confPaint);
+            canvas.drawText(conf, symbol.rect.left, symbol.rect.top - (symbol.rect.height() - 10), confPaint);
 
-                Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
-                borderRectPaint.setStyle(Paint.Style.STROKE);
-                if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
-                    prevRight = 0;
-                }
-                //canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
-                canvas.drawRect(symbol.rect, borderRectPaint);
-                prevRight = symbol.rect.right;
-                prevBottom = symbol.rect.bottom;
+            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
+            borderRectPaint.setStyle(Paint.Style.STROKE);
+            if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
+                prevRight = 0;
             }
+            //canvas.drawRect(prevRight, symbol.rect.bottom, symbol.rect.right, symbol.rect.bottom + 3, borderRectPaint);
+            canvas.drawRect(symbol.rect, borderRectPaint);
+            prevRight = symbol.rect.right;
+            prevBottom = symbol.rect.bottom;
+
         }
         return bm;
     }
