@@ -282,14 +282,10 @@ public class TextRec {
                 String s = singleCharRecognition.getUTF8Text();
                 Log.d("s", s);
                 if (s.trim().length() > 0) {
-                    if (s.contains("c")) {
-                        symbol.symbol = "c";
-                    } else if (s.contains("d")) {
-                        symbol.symbol = "d";
-                    } else if (s.contains("b")) {
-                        symbol.symbol = "b";
-                    } else {
+                    if (s.matches(".*\\d|a.*")) {
                         symbol.symbol = "a";
+                    } else {
+                        symbol.symbol = s;
                     }
                     symbol.сonfidence = singleCharRecognition.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
                 } else {
