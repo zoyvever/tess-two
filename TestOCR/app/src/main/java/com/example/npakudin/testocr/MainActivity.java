@@ -119,21 +119,9 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, file);
                 istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
-                double threshold=0;
 
-                Bitmap res=null;
-                TextRec.MicrInfo micrInfo=null;
-                List<TextRec.Symbol> rawRecognize=null;
-                do {
-                    res = TextRec.prepareImage(src, threshold);
-                    rawRecognize = TextRec.rawRecognize(res);
-                    micrInfo = TextRec.findBorders(rawRecognize);
-                    threshold=threshold+ 0.1;
-                }while(threshold<0.5 && micrInfo.inLineRecognized<8);
-
-                rawRecognize=TextRec.filterTheline(rawRecognize,micrInfo);
-                CheckData checkData = TextRec.improve(res, rawRecognize,micrInfo);
-                checkData.res = TextRec.drawRecText(res, scale, checkData.symbols);
+                CheckData checkData= TextRec.recognize(src);
+                checkData.res = TextRec.drawRecText(checkData.res, scale, checkData.symbols);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 
@@ -141,12 +129,13 @@ public class MainActivity extends AppCompatActivity {
                 checkData.distance = levenshteinDistance(checkData.wholeText, checkData.realText);
 
                 double itemRecognition = (checkData.wholeText.length() - checkData.distance) / (file.length() - 5.0);
-                Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData.wholeText);
+//                Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData.wholeText);
                 allPrc = allPrc + itemRecognition;
                 if (itemRecognition == 1) {
                     successfullyRecognized++;
                 }
                 saveBitmap(checkData.res, file.substring(0, file.length() - 4));
+//                Log.d("rout", checkData.accountNumber+" rout: "+checkData.routingNumber);
 
 
                 entities.add(checkData);

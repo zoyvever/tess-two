@@ -32,6 +32,24 @@ import java.util.Locale;
 public class TextRec {
     private static final String LOGTAG = "TextRecognizer";
 
+    public static CheckData recognize(Bitmap bm){
+        double threshold=0;
+
+        Bitmap res=null;
+        TextRec.MicrInfo micrInfo=null;
+        List<TextRec.Symbol> rawRecognize=null;
+        do {
+            res = prepareImage(bm, threshold);
+            rawRecognize = rawRecognize(res);
+            micrInfo = findBorders(rawRecognize);
+            threshold=threshold+ 0.1;
+        }while(threshold<0.5 && micrInfo.inLineRecognized<8);
+
+        rawRecognize=TextRec.filterTheline(rawRecognize,micrInfo);
+        CheckData checkData = TextRec.improve(res, rawRecognize,micrInfo);
+        return checkData;
+    }
+
     public static class Symbol {
         public String symbol;
         public double сonfidence;
@@ -229,7 +247,7 @@ public class TextRec {
         int topBorder = findMostFrequentItem(top);
         int bottomBorder = findMostFrequentItem(bottom);
         int inLineRecognized = findTheLine(top, topBorder);
-        int pogr = (int) (0.6 * (topBorder - bottomBorder));
+        int pogr = (int) (0.8 * (topBorder - bottomBorder));
         return new MicrInfo(topBorder + pogr, bottomBorder - pogr, min, inLineRecognized);
     }
 
@@ -259,7 +277,6 @@ public class TextRec {
         TessBaseAPI singleCharRecognition = createTessBaseApi();
         singleCharRecognition.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
         singleCharRecognition.setImage(bm);
-
         String recognizedText = "";
         List<Symbol> symbols = new ArrayList<>();
         Rect oneCharRect = null;
