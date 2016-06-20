@@ -32,21 +32,21 @@ import java.util.Locale;
 public class TextRec {
     private static final String LOGTAG = "TextRecognizer";
 
-    public static CheckData recognize(Bitmap bm){
-        double threshold=0;
+    public static CheckData recognize(Bitmap bm) {
+        double threshold = 0;
 
-        Bitmap res=null;
-        TextRec.MicrInfo micrInfo=null;
-        List<TextRec.Symbol> rawRecognize=null;
+        Bitmap res = null;
+        TextRec.MicrInfo micrInfo = null;
+        List<TextRec.Symbol> rawRecognize = null;
         do {
             res = prepareImage(bm, threshold);
             rawRecognize = rawRecognize(res);
             micrInfo = findBorders(rawRecognize);
-            threshold=threshold+ 0.1;
-        }while(threshold<0.5 && micrInfo.inLineRecognized<8);
+            threshold = threshold + 0.1;
+        } while (threshold < 0.5 && micrInfo.inLineRecognized < 8);
 
-        rawRecognize=TextRec.filterTheline(rawRecognize,micrInfo);
-        CheckData checkData = TextRec.improve(res, rawRecognize,micrInfo);
+        rawRecognize = TextRec.filterTheline(rawRecognize, micrInfo);
+        CheckData checkData = TextRec.improve(res, rawRecognize, micrInfo);
         return checkData;
     }
 
@@ -274,10 +274,10 @@ public class TextRec {
     }
 
     public static CheckData improve(Bitmap bm, List<Symbol> rawSymbols, MicrInfo micrInfo) {
+        StringBuilder builder = new StringBuilder();
         TessBaseAPI singleCharRecognition = createTessBaseApi();
         singleCharRecognition.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
         singleCharRecognition.setImage(bm);
-        String recognizedText = "";
         List<Symbol> symbols = new ArrayList<>();
         Rect oneCharRect = null;
 
@@ -319,11 +319,11 @@ public class TextRec {
                 //if everything is normal
                 symbol = rawSymbol;
             }
-
+            builder.append(symbol.symbol);
             symbols.add(symbol);
-            recognizedText = recognizedText + symbol.symbol;
         }
-        return new CheckData(bm, recognizedText, symbols);
+
+        return new CheckData(bm, builder.toString(), symbols);
     }
 
     public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols) {
