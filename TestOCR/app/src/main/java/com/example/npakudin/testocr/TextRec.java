@@ -33,20 +33,19 @@ public class TextRec {
     private static final String LOGTAG = "TextRecognizer";
 
     public static CheckData recognize(Bitmap bm) {
-        double threshold = 0;
-
-        Bitmap res = null;
-        TextRec.MicrInfo micrInfo = null;
-        List<TextRec.Symbol> rawRecognize = null;
+        double threshold = 0.1;
+        Bitmap res;
+        TextRec.MicrInfo micrInfo;
+        List<TextRec.Symbol> rawRecognize;
         do {
-            res = prepareImage(bm, threshold);
-            rawRecognize = rawRecognize(res);
-            micrInfo = findBorders(rawRecognize);
-            threshold = threshold + 0.1;
-        } while (threshold < 0.5 && micrInfo.inLineRecognized < 8);
+        res = prepareImage(bm, threshold);
+        rawRecognize = rawRecognize(res);
+        micrInfo = findBorders(rawRecognize);
+        threshold = threshold + 0.1;
+        } while (threshold < 0.4 && micrInfo.inLineRecognized < 9);
 
-        rawRecognize = TextRec.filterTheline(rawRecognize, micrInfo);
-        CheckData checkData = TextRec.improve(res, rawRecognize, micrInfo);
+        List<TextRec.Symbol> filteredSymbols = TextRec.filterTheline(rawRecognize, micrInfo);
+        CheckData checkData = TextRec.improve(res, filteredSymbols, micrInfo);
         return checkData;
     }
 
@@ -218,12 +217,19 @@ public class TextRec {
 
     public static Bitmap prepareImage(Bitmap bm, double threshold) {
         Bitmap res;
-        Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
-                3000, 3000,
-                3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
-                Binarize.OTSU_SCORE_FRACTION + (float) threshold);
+        Pix imag;
+        if (threshold < 0.3) {
+            imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
+                    3000, 3000,
+                    3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
+                    Binarize.OTSU_SCORE_FRACTION + (float) threshold);
+        } else {
+            //in case if that binarize does not work with the image
+            imag = Binarize.sauvolaBinarizeTiled(ReadFile.readBitmap(bm));
+        }
         Float s = Skew.findSkew(imag);
         res = WriteFile.writeBitmap(Rotate.rotate(imag, s));
+        Log.d("threshold", "thresh: " + (Binarize.OTSU_SCORE_FRACTION + (float) threshold));
 
         return res;
     }
@@ -254,10 +260,16 @@ public class TextRec {
     public static List<Symbol> filterTheline(List<Symbol> rawSymbols, MicrInfo micrInfo) {
         int right = 0;
         List<Symbol> symbols = new ArrayList<>();
+        Log.d(LOGTAG, "top: " + micrInfo.top + "; bottom: " + micrInfo.bottom + "; recognized in Line: " + micrInfo.inLineRecognized);
         for (Symbol rawSymbol : rawSymbols) {
+
+//            Log.d("filtrConflog ", "" + rawSymbol.сonfidence + "; symbol1 " + rawSymbol.symbol +
+//                    "; left " + rawSymbol.rect.left + "; right" + rawSymbol.rect.right + " widh " + rawSymbol.rect.width()
+//                    + " top,bottom: " + rawSymbol.rect.top + " , " + rawSymbol.rect.bottom);
+
             Rect rect = rawSymbol.rect;
             Symbol symbol;
-            if (rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) {
+            if ((rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) && rawSymbol.сonfidence > 40) {
 
                 if (rect.left <= right) {
                     //if the rectangle starts before the last one ends- throw it away
@@ -280,7 +292,6 @@ public class TextRec {
         singleCharRecognition.setImage(bm);
         List<Symbol> symbols = new ArrayList<>();
         Rect oneCharRect = null;
-
         for (Symbol rawSymbol : rawSymbols) {
             Symbol symbol = new Symbol();
             if (oneCharRect != null) {
@@ -321,6 +332,9 @@ public class TextRec {
             }
             builder.append(symbol.symbol);
             symbols.add(symbol);
+            Log.d("conflog ", "" + symbol.сonfidence + "; symbol1 " + symbol.symbol +
+                    "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " + symbol.rect.width()
+                    + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
         }
 
         return new CheckData(bm, builder.toString(), symbols);
