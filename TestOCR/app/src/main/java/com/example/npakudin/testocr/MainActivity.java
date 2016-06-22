@@ -148,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "realText:   " + item.realText);
                 Log.d(TAG, "recognized: " + item.wholeText);
                 Log.d(TAG, "levenshteinDistance: " + item.distance);
+                Log.d(TAG, "routing"+item.routingNumber);
             }
         } catch (IOException e) {
             Log.e(TAG, e.toString());
