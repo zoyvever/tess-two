@@ -14,6 +14,7 @@ import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
 import com.googlecode.leptonica.android.ReadFile;
 import com.googlecode.leptonica.android.Rotate;
+import com.googlecode.leptonica.android.Scale;
 import com.googlecode.leptonica.android.Skew;
 import com.googlecode.leptonica.android.WriteFile;
 import com.googlecode.tesseract.android.ResultIterator;
@@ -33,27 +34,26 @@ public class TextRec {
     private static final String LOGTAG = "TextRecognizer";
 
     public static CheckData recognize(Bitmap bm) {
-        double threshold = 0;
-        Bitmap res;
-        TextRec.MicrInfo micrInfo;
-        List<TextRec.Symbol> rawRecognize;
+        Pix pix = ReadFile.readBitmap(bm);
+        if (pix.getHeight() > 400) {
+            pix = Scale.scale(pix, (float) 0.5);
+        }
 
-        Pix imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
+        Pix binarized = Binarize.otsuAdaptiveThreshold(pix,
                 3000, 3000,
                 3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
                 Binarize.OTSU_SCORE_FRACTION);
 
-        res = unskew(imag);
-        rawRecognize = rawRecognize(res);
-        micrInfo = findBorders(rawRecognize);
+        Bitmap res = unskew(binarized);
+        List<Symbol> rawRecognize = rawRecognize(res);
+        MicrInfo micrInfo = findBorders(rawRecognize);
+
         if (micrInfo.inLineRecognized < 20) {
-            Bitmap res1;
-            TextRec.MicrInfo micrInfo1;
-            List<TextRec.Symbol> rawRecognize1;
-            imag = Binarize.sauvolaBinarizeTiled(ReadFile.readBitmap(bm));
-            res1 = unskew(imag);
-            rawRecognize1 = rawRecognize(res1);
-            micrInfo1 = findBorders(rawRecognize1);
+            binarized = Binarize.sauvolaBinarizeTiled(pix);
+            Bitmap res1 = unskew(binarized);
+            List<Symbol> rawRecognize1 = rawRecognize(res1);
+            MicrInfo micrInfo1 = findBorders(rawRecognize1);
+
             if (micrInfo.inLineRecognized < micrInfo1.inLineRecognized) {
                 res = res1;
                 rawRecognize = rawRecognize1;
