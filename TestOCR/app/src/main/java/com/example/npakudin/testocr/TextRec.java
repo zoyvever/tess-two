@@ -14,6 +14,7 @@ import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
 import com.googlecode.leptonica.android.ReadFile;
 import com.googlecode.leptonica.android.Rotate;
+import com.googlecode.leptonica.android.Scale;
 import com.googlecode.leptonica.android.Skew;
 import com.googlecode.leptonica.android.WriteFile;
 import com.googlecode.tesseract.android.ResultIterator;
@@ -33,16 +34,26 @@ public class TextRec {
     private static final String LOGTAG = "TextRecognizer";
 
     public static CheckData recognize(Bitmap bm) {
-        double threshold = 0.1;
+        double threshold = 0;
         Bitmap res;
+        Bitmap res1;
         TextRec.MicrInfo micrInfo;
+        TextRec.MicrInfo micrInfo1;
         List<TextRec.Symbol> rawRecognize;
-        do {
-        res = prepareImage(bm, threshold);
+        List<TextRec.Symbol> rawRecognize1;
+
+        res = prepareImage(bm, threshold, true);
+        res1 = prepareImage(bm, threshold, false);
         rawRecognize = rawRecognize(res);
+        rawRecognize1 = rawRecognize(res1);
         micrInfo = findBorders(rawRecognize);
-        threshold = threshold + 0.1;
-        } while (threshold < 0.4 && micrInfo.inLineRecognized < 9);
+        micrInfo1 = findBorders(rawRecognize1);
+        Log.d("inline", ""+micrInfo.inLineRecognized+" 2: "+micrInfo1.inLineRecognized);
+        if (micrInfo.inLineRecognized<micrInfo1.inLineRecognized){
+            micrInfo=micrInfo1;
+            rawRecognize=rawRecognize1;
+            res=res1;
+        }
 
         List<TextRec.Symbol> filteredSymbols = TextRec.filterTheline(rawRecognize, micrInfo);
         CheckData checkData = TextRec.improve(res, filteredSymbols, micrInfo);
@@ -215,23 +226,22 @@ public class TextRec {
         return symbols;
     }
 
-    public static Bitmap prepareImage(Bitmap bm, double threshold) {
-        Bitmap res;
+    public static Bitmap prepareImage(Bitmap bm, double threshold,boolean isFirst) {
         Pix imag;
-        if (threshold < 0.3) {
-            imag = Binarize.otsuAdaptiveThreshold(ReadFile.readBitmap(bm),
+        Pix res=ReadFile.readBitmap(bm);
+//        Pix res=Scale.scale(ReadFile.readBitmap(bm),(float)0.5);
+        if (isFirst) {
+            imag = Binarize.otsuAdaptiveThreshold(res,
                     3000, 3000,
                     3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
-                    Binarize.OTSU_SCORE_FRACTION + (float) threshold);
+                     Binarize.OTSU_SCORE_FRACTION);
         } else {
-            //in case if that binarize does not work with the image
-            imag = Binarize.sauvolaBinarizeTiled(ReadFile.readBitmap(bm));
+            imag = Binarize.sauvolaBinarizeTiled(res);
         }
         Float s = Skew.findSkew(imag);
-        res = WriteFile.writeBitmap(Rotate.rotate(imag, s));
         Log.d("threshold", "thresh: " + (Binarize.OTSU_SCORE_FRACTION + (float) threshold));
 
-        return res;
+        return WriteFile.writeBitmap(Rotate.rotate(imag, s));
     }
 
     public static MicrInfo findBorders(List<Symbol> rawSymbols) {
@@ -243,8 +253,8 @@ public class TextRec {
             Rect rect = rawSymbol.rect;
 
             if (rawSymbol.сonfidence > 70) {
-                if ((rect.right - rect.left) < min) {
-                    min = rect.right - rect.left;
+                if ((rect.width()) < min) {
+                    min = rect.width();
                 }
                 bottom = fillTheMap(bottom, rect.bottom);
                 top = fillTheMap(top, rect.top);
@@ -260,12 +270,12 @@ public class TextRec {
     public static List<Symbol> filterTheline(List<Symbol> rawSymbols, MicrInfo micrInfo) {
         int right = 0;
         List<Symbol> symbols = new ArrayList<>();
-        Log.d(LOGTAG, "top: " + micrInfo.top + "; bottom: " + micrInfo.bottom + "; recognized in Line: " + micrInfo.inLineRecognized);
+        Log.d(LOGTAG, "top: " + micrInfo.top + "; bottom: " + micrInfo.bottom + "; min: "+micrInfo.minimumCharWidth+"; recognized in Line: " + micrInfo.inLineRecognized);
         for (Symbol rawSymbol : rawSymbols) {
 
-//            Log.d("filtrConflog ", "" + rawSymbol.сonfidence + "; symbol1 " + rawSymbol.symbol +
-//                    "; left " + rawSymbol.rect.left + "; right" + rawSymbol.rect.right + " widh " + rawSymbol.rect.width()
-//                    + " top,bottom: " + rawSymbol.rect.top + " , " + rawSymbol.rect.bottom);
+            Log.d("filtrConflog ", "" + rawSymbol.сonfidence + "; symbol1 " + rawSymbol.symbol +
+                    "; left " + rawSymbol.rect.left + "; right" + rawSymbol.rect.right + " widh " + rawSymbol.rect.width()
+                    + " top,bottom: " + rawSymbol.rect.top + " , " + rawSymbol.rect.bottom);
 
             Rect rect = rawSymbol.rect;
             Symbol symbol;
@@ -290,6 +300,7 @@ public class TextRec {
         TessBaseAPI singleCharRecognition = createTessBaseApi();
         singleCharRecognition.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
         singleCharRecognition.setImage(bm);
+        double conf =0;
         List<Symbol> symbols = new ArrayList<>();
         Rect oneCharRect = null;
         for (Symbol rawSymbol : rawSymbols) {
@@ -310,7 +321,7 @@ public class TextRec {
                 String s = singleCharRecognition.getUTF8Text();
                 Log.d("s", s);
                 if (s.trim().length() > 0) {
-                    if (s.matches(".*\\d|a.*")) {
+                    if (s.matches("\\s*\\d|a\\s*")) {
                         symbol.symbol = "a";
                     } else {
                         symbol.symbol = s;
@@ -332,10 +343,12 @@ public class TextRec {
             }
             builder.append(symbol.symbol);
             symbols.add(symbol);
-            Log.d("conflog ", "" + symbol.сonfidence + "; symbol1 " + symbol.symbol +
-                    "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " + symbol.rect.width()
-                    + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
+            conf = conf+symbol.сonfidence;
+//            Log.d("conflog ", "" + symbol.сonfidence + "; symbol1 " + symbol.symbol +
+//                    "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " + symbol.rect.width()
+//                    + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
         }
+        Log.d("confidence", ""+conf/symbols.size());
 
         return new CheckData(bm, builder.toString(), symbols);
     }
