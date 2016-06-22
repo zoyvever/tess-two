@@ -39,17 +39,17 @@ public class TextRec {
             pix = Scale.scale(pix, (float) 0.5);
         }
 
-        Pix binarized = Binarize.otsuAdaptiveThreshold(pix,
-                3000, 3000,
-                3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
-                Binarize.OTSU_SCORE_FRACTION);
-
+        Pix binarized = Binarize.sauvolaBinarizeTiled(pix);
         Bitmap res = unskew(binarized);
         List<Symbol> rawRecognize = rawRecognize(res);
         MicrInfo micrInfo = findBorders(rawRecognize);
 
         if (micrInfo.inLineRecognized < 20) {
-            binarized = Binarize.sauvolaBinarizeTiled(pix);
+
+            binarized = Binarize.otsuAdaptiveThreshold(pix,
+                    3000, 3000,
+                    3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
+                    Binarize.OTSU_SCORE_FRACTION);
             Bitmap res1 = unskew(binarized);
             List<Symbol> rawRecognize1 = rawRecognize(res1);
             MicrInfo micrInfo1 = findBorders(rawRecognize1);
