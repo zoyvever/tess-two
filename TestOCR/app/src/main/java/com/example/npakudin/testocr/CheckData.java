@@ -14,17 +14,32 @@ public class CheckData {
     public Bitmap res;
     public String wholeText = "";
     public String routingNumber = "";
-    //    public String accountNumber="";
+    public String accountNumber = "";
+    public String checkNumber = "";
+    String toCut = "";
     public List<TextRec.Symbol> symbols = null;
 
     public CheckData(Bitmap res, String wholeText, List<TextRec.Symbol> symbols) {
         this.res = res;
         this.wholeText = wholeText;
         this.symbols = symbols;
-        Pattern routingPattern = Pattern.compile("c\\d{9,10}|\\d{9,10}c");
-        Matcher m = routingPattern.matcher(wholeText);
+
+        toCut = wholeText;
+        routingNumber = findPattern("a\\d{9}(?!c|\\d)|\\d{9}a", "a");
+        accountNumber = findPattern("\\d{1,15}c", "c");
+        checkNumber = findPattern("\\d{1,10}", "");
+    }
+
+    public String findPattern(String pattern, String replace) {
+        String s = "UNRECOGNIZED";
+        Pattern pat = Pattern.compile(pattern);
+        Matcher m = pat.matcher(toCut);
+
         while (m.find()) {
-            routingNumber = m.group(0).replace("c", "");
+            s = m.group().replace(replace, "");
         }
+
+        toCut = toCut.replaceAll(s, " ");
+        return s;
     }
 }

@@ -120,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
                 istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
-                CheckData checkData= TextRec.recognize(src);
+                CheckData checkData = TextRec.recognize(src);
                 checkData.res = TextRec.drawRecText(checkData.res, scale, checkData.symbols);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
@@ -129,14 +129,11 @@ public class MainActivity extends AppCompatActivity {
                 checkData.distance = levenshteinDistance(checkData.wholeText, checkData.realText);
 
                 double itemRecognition = (checkData.wholeText.length() - checkData.distance) / (file.length() - 5.0);
-//                Log.d("itemRecognition", "Recognized " + itemRecognition + "% of " + file + "; text: " + checkData.wholeText);
                 allPrc = allPrc + itemRecognition;
                 if (itemRecognition == 1) {
                     successfullyRecognized++;
                 }
                 saveBitmap(checkData.res, file.substring(0, file.length() - 4));
-//                Log.d("rout", checkData.accountNumber+" rout: "+checkData.routingNumber);
-
 
                 entities.add(checkData);
             }
@@ -145,11 +142,17 @@ public class MainActivity extends AppCompatActivity {
 
 
             for (CheckData item : entities) {
+                String recognizedFields = String.format(" routing: %s %n account: %s %n check number: %s %n ",
+                        item.routingNumber, item.accountNumber, item.checkNumber);
                 Log.d(TAG, "realText:   " + item.realText);
                 Log.d(TAG, "recognized: " + item.wholeText);
                 Log.d(TAG, "levenshteinDistance: " + item.distance);
-                Log.d(TAG, "routing"+item.routingNumber);
+                Log.d(TAG, recognizedFields);
+//                Log.d(TAG, "routing: "+item.routingNumber);
+//                Log.d(TAG, "account: "+item.accountNumber);
+//                Log.d(TAG, "check number: "+item.checkNumber);
             }
+
         } catch (IOException e) {
             Log.e(TAG, e.toString());
         }
