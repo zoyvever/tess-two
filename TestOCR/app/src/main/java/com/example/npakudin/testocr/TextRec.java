@@ -46,13 +46,13 @@ public class TextRec {
 
         if (micrInfo.inLineRecognized < 20) {
 
-            binarized = Binarize.otsuAdaptiveThreshold(pix,
-                    3000, 3000,
-                    3 * Binarize.OTSU_SMOOTH_X, 3 * Binarize.OTSU_SMOOTH_Y,
-                    Binarize.OTSU_SCORE_FRACTION);
+            binarized = Binarize.otsuAdaptiveThreshold(pix, 3000, 3000, 3 * Binarize.OTSU_SMOOTH_X,
+                    3 * Binarize.OTSU_SMOOTH_Y, Binarize.OTSU_SCORE_FRACTION);
+
             Bitmap res1 = unskew(binarized);
             List<Symbol> rawRecognize1 = rawRecognize(res1);
             MicrInfo micrInfo1 = findBorders(rawRecognize1);
+            Log.d("inline", micrInfo.inLineRecognized + ", " + micrInfo1.inLineRecognized);
 
             if (micrInfo.inLineRecognized < micrInfo1.inLineRecognized) {
                 res = res1;
@@ -127,23 +127,25 @@ public class TextRec {
         int freq = 0;
 
         for (HashMap.Entry<Integer, Integer> entry : map.entrySet()) {
-            if (entry.getValue() > freq) {
+            if (entry.getValue() >= freq) {
                 trueBorder = entry.getKey();
                 freq = entry.getValue();
+                Log.d("freq", "" + trueBorder + ", " + freq);
             }
         }
+        Log.d("freq", "xxx");
         return trueBorder;
     }
 
     public static int findTheLine(HashMap<Integer, Integer> map, int mostFrequentItem) {
-        int cuantityOfRecognizedItems = 0;
+        int quantityOfRecognizedItems = 0;
         for (HashMap.Entry<Integer, Integer> entry : map.entrySet()) {
             if (entry.getKey() > mostFrequentItem - 5 && entry.getKey() < mostFrequentItem + 5) {
-                cuantityOfRecognizedItems = cuantityOfRecognizedItems + entry.getValue();
+                quantityOfRecognizedItems = quantityOfRecognizedItems + entry.getValue();
             }
         }
-        Log.d(LOGTAG, "quantity of recognized items in line: " + cuantityOfRecognizedItems);
-        return cuantityOfRecognizedItems;
+        Log.d(LOGTAG, "quantity of recognized items in line: " + quantityOfRecognizedItems);
+        return quantityOfRecognizedItems;
     }
 
     private static String mcrFilePath = null;
@@ -254,9 +256,11 @@ public class TextRec {
             }
         }
         int topBorder = findMostFrequentItem(top);
+        Log.d("freq", "find top");
         int bottomBorder = findMostFrequentItem(bottom);
+        Log.d("freq", "find botom");
         int inLineRecognized = findTheLine(top, topBorder);
-        int pogr = (int) (0.8 * (topBorder - bottomBorder));
+        int pogr = (int) (0.6 * (topBorder - bottomBorder));
         return new MicrInfo(topBorder + pogr, bottomBorder - pogr, min, inLineRecognized);
     }
 
@@ -299,6 +303,11 @@ public class TextRec {
         for (Symbol rawSymbol : rawSymbols) {
             Symbol symbol = new Symbol();
             if (oneCharRect != null) {
+                if (oneCharRect.width() + rawSymbol.rect.width() < micrInfo.minimumCharWidth) {
+                    //in case if tle letter divided in three parts
+                    oneCharRect.right = rawSymbol.rect.right;
+                    continue;
+                }
                 //if we already have first part of unrecognized letter then
                 if (rawSymbol.rect.top < oneCharRect.top) {
                     oneCharRect.top = rawSymbol.rect.top;
@@ -337,9 +346,6 @@ public class TextRec {
             builder.append(symbol.symbol);
             symbols.add(symbol);
             conf = conf + symbol.сonfidence;
-//            Log.d("conflog ", "" + symbol.сonfidence + "; symbol1 " + symbol.symbol +
-//                    "; left " + symbol.rect.left + "; right" + symbol.rect.right + " widh " + symbol.rect.width()
-//                    + " top,bottom: " + symbol.rect.top + " , " + symbol.rect.bottom);
         }
         Log.d("confidence", "" + conf / symbols.size());
 
