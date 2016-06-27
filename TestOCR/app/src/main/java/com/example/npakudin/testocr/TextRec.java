@@ -33,12 +33,7 @@ import java.util.Locale;
 public class TextRec {
     private static final String LOGTAG = "TextRecognizer";
 
-    public static CheckData recognize(Bitmap bm) {
-        Pix pix = ReadFile.readBitmap(bm);
-        if (pix.getHeight() > 400) {
-            pix = Scale.scale(pix, (float) 0.5);
-        }
-
+    public static CheckData recognize(Pix pix) {
         Pix binarized = Binarize.sauvolaBinarizeTiled(pix);
         Bitmap res = unskew(binarized);
         List<Symbol> rawRecognize = rawRecognize(res);
@@ -46,25 +41,71 @@ public class TextRec {
 
         if (micrInfo.inLineRecognized < 20) {
 
+            //if there is possibility gradient background prevent some symbols to be clear-
+            //try another type of binarization
+
             binarized = Binarize.otsuAdaptiveThreshold(pix, 3000, 3000, 3 * Binarize.OTSU_SMOOTH_X,
                     3 * Binarize.OTSU_SMOOTH_Y, Binarize.OTSU_SCORE_FRACTION);
-
             Bitmap res1 = unskew(binarized);
             List<Symbol> rawRecognize1 = rawRecognize(res1);
             MicrInfo micrInfo1 = findBorders(rawRecognize1);
             Log.d("inline", micrInfo.inLineRecognized + ", " + micrInfo1.inLineRecognized);
 
             if (micrInfo.inLineRecognized < micrInfo1.inLineRecognized) {
+
+                //compare the results from two binarizations and choose the best
+
                 res = res1;
                 rawRecognize = rawRecognize1;
                 micrInfo = micrInfo1;
             }
         }
-
         List<TextRec.Symbol> filteredSymbols = TextRec.filterTheline(rawRecognize, micrInfo);
         CheckData checkData = TextRec.improve(res, filteredSymbols, micrInfo);
         return checkData;
     }
+
+    public static CheckData recognizeCycle(Bitmap bm, int iter) {
+        Pix pix = ReadFile.readBitmap(bm);
+        Bitmap res;
+        CheckData checkData = recognize(pix);
+        Log.d("con", "conf: " + checkData.confidence+"; size: "+checkData.symbols.size());
+
+        //if confidence is obviously lower than needed- try different ways to resize the image
+
+        if ((checkData.confidence < 40 | checkData.symbols.size() < 6) && iter < 1) {
+
+            //if there is not enough recognized symbols to find their borders to cut the image,
+            //we try to scale it first,so binarization will have another chance to work fine
+
+            res = WriteFile.writeBitmap(Scale.scale(pix, (float) 0.8));
+            iter = 1;
+            return recognizeCycle(res, iter);
+
+        } else if (checkData.confidence < 70 && iter < 2) {
+
+            //to crop the image we need to retrieve top and bottom
+
+            int top = 1000;
+            int bottom = 0;
+            for (Symbol symbol : checkData.symbols) {
+                if (top > symbol.rect.top) {
+                    top = symbol.rect.top;
+                }
+                if (bottom < symbol.rect.bottom) {
+                    bottom = symbol.rect.bottom;
+                }
+            }
+            //in case of skew take a 2 sizes of the line which allows 6 degrees skew
+            int width=(bottom-top);
+            res = Bitmap.createBitmap(bm, 0, top-width, bm.getWidth(), 2*width);
+            iter = 2;
+            return recognizeCycle(res, iter);
+        } else {
+            return checkData;
+        }
+    }
+
 
     public static class Symbol {
         public String symbol;
@@ -85,6 +126,7 @@ public class TextRec {
             this.minimumCharWidth = minimumCharWidth;
             this.inLineRecognized = inLineRecognized;
         }
+
     }
 
     public static File getCacheDir(Context context) {
@@ -130,10 +172,8 @@ public class TextRec {
             if (entry.getValue() >= freq) {
                 trueBorder = entry.getKey();
                 freq = entry.getValue();
-                Log.d("freq", "" + trueBorder + ", " + freq);
             }
         }
-        Log.d("freq", "xxx");
         return trueBorder;
     }
 
@@ -213,7 +253,6 @@ public class TextRec {
     public static List<Symbol> rawRecognize(Bitmap bm) {
         TessBaseAPI baseApi = createTessBaseApi();
         baseApi.setImage(bm);
-
         List<Symbol> symbols = new ArrayList<>();
 
         if (baseApi.getUTF8Text().trim().length() > 0) {
@@ -256,9 +295,7 @@ public class TextRec {
             }
         }
         int topBorder = findMostFrequentItem(top);
-        Log.d("freq", "find top");
         int bottomBorder = findMostFrequentItem(bottom);
-        Log.d("freq", "find botom");
         int inLineRecognized = findTheLine(top, topBorder);
         int pogr = (int) (0.6 * (topBorder - bottomBorder));
         return new MicrInfo(topBorder + pogr, bottomBorder - pogr, min, inLineRecognized);
@@ -269,14 +306,14 @@ public class TextRec {
         List<Symbol> symbols = new ArrayList<>();
         Log.d(LOGTAG, "top: " + micrInfo.top + "; bottom: " + micrInfo.bottom + "; min: " + micrInfo.minimumCharWidth + "; recognized in Line: " + micrInfo.inLineRecognized);
         for (Symbol rawSymbol : rawSymbols) {
-
+//
             Log.d("filtrConflog ", "" + rawSymbol.сonfidence + "; symbol1 " + rawSymbol.symbol +
                     "; left " + rawSymbol.rect.left + "; right" + rawSymbol.rect.right + " widh " + rawSymbol.rect.width()
                     + " top,bottom: " + rawSymbol.rect.top + " , " + rawSymbol.rect.bottom);
 
             Rect rect = rawSymbol.rect;
             Symbol symbol;
-            if ((rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) && rawSymbol.сonfidence > 40) {
+            if ((rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) && rawSymbol.сonfidence > 20) {
 
                 if (rect.left <= right) {
                     //if the rectangle starts before the last one ends- throw it away
@@ -298,12 +335,13 @@ public class TextRec {
         singleCharRecognition.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
         singleCharRecognition.setImage(bm);
         double conf = 0;
+        double minconf = 100;
         List<Symbol> symbols = new ArrayList<>();
         Rect oneCharRect = null;
         for (Symbol rawSymbol : rawSymbols) {
             Symbol symbol = new Symbol();
             if (oneCharRect != null) {
-                if (oneCharRect.width() + rawSymbol.rect.width() < micrInfo.minimumCharWidth) {
+                if (oneCharRect.width() + rawSymbol.rect.width() <= micrInfo.minimumCharWidth) {
                     //in case if tle letter divided in three parts
                     oneCharRect.right = rawSymbol.rect.right;
                     continue;
@@ -321,7 +359,7 @@ public class TextRec {
                 //use value for 'right' from the last rect
                 singleCharRecognition.setRectangle(oneCharRect);
                 String s = singleCharRecognition.getUTF8Text();
-                Log.d("s", s);
+                Log.d("recognized string", s);
                 if (s.trim().length() > 0) {
                     if (s.matches("\\s*\\d|a\\s*")) {
                         symbol.symbol = "a";
@@ -331,11 +369,13 @@ public class TextRec {
                     symbol.сonfidence = singleCharRecognition.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
                 } else {
                     symbol.symbol = "a";
-                    symbol.сonfidence = 0.0;
+                    symbol.сonfidence = 40.0;
+                    Log.d(LOGTAG, "bad recognition");
                 }
                 symbol.rect = oneCharRect;
                 oneCharRect = null;
-            } else if (rawSymbol.rect.width() < micrInfo.minimumCharWidth) {
+            } else if ((rawSymbol.rect.width() < micrInfo.minimumCharWidth) &&
+                    (rawSymbol.symbol != "1" && rawSymbol.сonfidence < 60)) {
                 //if we dont have first part of letter in oneCharRect and the width of the symbl says that that it is here
                 oneCharRect = rawSymbol.rect;
                 continue;
@@ -346,10 +386,13 @@ public class TextRec {
             builder.append(symbol.symbol);
             symbols.add(symbol);
             conf = conf + symbol.сonfidence;
-        }
-        Log.d("confidence", "" + conf / symbols.size());
+            if (symbol.сonfidence < minconf) {
+                minconf = symbol.сonfidence;
+            }
 
-        return new CheckData(bm, builder.toString(), symbols);
+        }
+
+        return new CheckData(bm, builder.toString(), symbols, conf / symbols.size());
     }
 
     public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols) {

@@ -120,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
                 istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
-                CheckData checkData = TextRec.recognize(src);
+                CheckData checkData = TextRec.recognizeCycle(src,0);
                 checkData.res = TextRec.drawRecText(checkData.res, scale, checkData.symbols);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);

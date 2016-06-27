@@ -16,13 +16,15 @@ public class CheckData {
     public String routingNumber = "";
     public String accountNumber = "";
     public String checkNumber = "";
+    public double confidence = 0;
     String toCut = "";
     public List<TextRec.Symbol> symbols = null;
 
-    public CheckData(Bitmap res, String wholeText, List<TextRec.Symbol> symbols) {
+    public CheckData(Bitmap res, String wholeText, List<TextRec.Symbol> symbols, double confidence) {
         this.res = res;
         this.wholeText = wholeText;
         this.symbols = symbols;
+        this.confidence=confidence;
 
         toCut = wholeText;
         routingNumber = findPattern("a\\d{9}(?!c|\\d)|\\d{9}a", "a");
