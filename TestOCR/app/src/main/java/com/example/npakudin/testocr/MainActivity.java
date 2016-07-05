@@ -135,6 +135,10 @@ public class MainActivity extends AppCompatActivity {
                 }
                 saveBitmap(checkData.res, file.substring(0, file.length() - 4));
 
+                if (checkData.distance == 0) {
+                    checkData.res = null;
+                }
+
                 entities.add(checkData);
             }
             Log.d("allPrc", "" + allPrc / list.length);
@@ -142,6 +146,10 @@ public class MainActivity extends AppCompatActivity {
 
 
             for (CheckData item : entities) {
+                if (item.distance == 0) {
+                    continue;
+                }
+
                 String recognizedFields = String.format(" routing: %s %n account: %s %n check number: %s %n ",
                         item.routingNumber, item.accountNumber, item.checkNumber);
                 Log.d(TAG, "realText:   " + item.realText);
