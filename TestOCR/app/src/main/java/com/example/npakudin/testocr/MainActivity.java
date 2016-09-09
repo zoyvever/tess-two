@@ -109,7 +109,12 @@ public class MainActivity extends AppCompatActivity {
         options.inMutable = true;
         Context context = getApplicationContext();
         float scale = context.getResources().getDisplayMetrics().density;
-        double successfullyRecognized = 0;
+
+        int symbolErrors = 0;
+        int totalSymbols = 0;
+
+        int recognizedChecks = 0;
+
         double allPrc = 0;
         AssetManager assetManager = getApplicationContext().getAssets();
         InputStream istr;
@@ -121,17 +126,17 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
                 CheckData checkData = MicrRecognizer.recognize(src);
-                checkData.res = Utils.drawRecText(checkData.res, scale, checkData.symbols);
+                checkData.res = Utils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 
                 checkData.realText = file.substring(0, file.length() - 5);
                 checkData.distance = levenshteinDistance(checkData.wholeText, checkData.realText);
 
-                double itemRecognition = 1 - (checkData.distance / (double)checkData.realText.length());
-                allPrc = allPrc + itemRecognition;
-                if (itemRecognition == 1) {
-                    successfullyRecognized++;
+                totalSymbols += checkData.wholeText.length();
+                symbolErrors += checkData.distance;
+                if (checkData.distance == 0) {
+                    recognizedChecks++;
                 }
                 //saveBitmap(checkData.res, file.substring(0, file.length() - 4));
 
@@ -141,8 +146,11 @@ public class MainActivity extends AppCompatActivity {
 
                 entities.add(checkData);
             }
-            Log.d("allPrc", "" + allPrc / list.length);
-            Log.d("total: ", "" + successfullyRecognized / list.length);
+
+            String info = "symbolErrors: " + symbolErrors + " / " + totalSymbols + " = " + (symbolErrors/(double)totalSymbols) +
+                    ", recognizedChecks: " + recognizedChecks + " / " + list.length + " = " + (recognizedChecks / (double)list.length);
+            Log.d("MainActivity", info);
+            textViewRes.setText(info);
 
 
             for (CheckData item : entities) {

@@ -14,13 +14,20 @@ import java.util.Locale;
 public class Utils {
 
 
-    public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols) {
+    public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols, String realText) {
         Canvas canvas = new Canvas(bm);
         float prevBottom = 0;
         String text = "";
         Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         textPaint.setColor(Color.rgb(0xff, 0, 0));
-        for (Symbol symbol : symbols) {
+        for (int i = 0; i < symbols.size(); i++) {
+
+            Symbol symbol = symbols.get(i);
+            String realSymbol =  i < realText.length() ? realText.charAt(i) + "" : "";
+            if (symbol.symbol.equals(realSymbol)) {
+                continue;
+            }
+
             textPaint.setTextSize((int) (symbol.rect.height() * scale / 1.5));
             text = text + symbol.symbol;
             canvas.drawText(symbol.symbol, symbol.rect.left, symbol.rect.top - (symbol.rect.height() + 10), textPaint);

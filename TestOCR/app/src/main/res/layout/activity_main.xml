@@ -10,7 +10,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/textViewRes"
-        android:text="123"
+        android:text="qqq"
         />
     <ListView
         android:id="@+id/listview"

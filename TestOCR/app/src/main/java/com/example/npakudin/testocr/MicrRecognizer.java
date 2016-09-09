@@ -36,7 +36,43 @@ public class MicrRecognizer {
 
     public static CheckData recognize(Bitmap bm) {
 
-        return recognizeCycle(bm, 0);
+        return recognizeCycle0(bm);
+    }
+
+    private static CheckData recognizeCycle0(Bitmap bm) {
+
+        Pix pix = ReadFile.readBitmap(bm);
+        CheckData checkData = recognize(pix);
+
+        if (checkData.confidence > 70) {
+            return checkData;
+        }
+        Log.d(LOGTAG, "checkData.confidence <= 70 : " + checkData.confidence);
+        if (checkData.confidence > 40) {
+            Bitmap cropped = cropBitmap(bm, checkData);
+            return recognize(ReadFile.readBitmap(cropped));
+        }
+        Log.d(LOGTAG, "checkData.confidence <= 40 : " + checkData.confidence);
+        Bitmap scaled = WriteFile.writeBitmap(Scale.scale(pix, (float) 0.8));
+        CheckData res = recognize(scaled);
+        return res;
+    }
+
+    private static Bitmap cropBitmap(Bitmap bm, CheckData checkData) {
+        // crop image
+        int top = 1000;
+        int bottom = 0;
+        for (Symbol symbol : checkData.symbols) {
+            if (top > symbol.rect.top) {
+                top = symbol.rect.top;
+            }
+            if (bottom < symbol.rect.bottom) {
+                bottom = symbol.rect.bottom;
+            }
+        }
+        //in case of skew take a 2 sizes of the line which allows 6 degrees skew
+        int width=(bottom-top);
+        return Bitmap.createBitmap(bm, 0, top-width, bm.getWidth(), 2*width);
     }
 
     private static CheckData recognizeCycle(Bitmap bm, int iter) {
