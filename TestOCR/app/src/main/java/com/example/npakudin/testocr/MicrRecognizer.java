@@ -34,39 +34,6 @@ public class MicrRecognizer {
 
     private static final String LOGTAG = "TextRecognizer";
 
-    private static CheckData recognize(Pix pix) {
-
-        Pix binarized = Binarize.sauvolaBinarizeTiled(pix);
-        Bitmap res = unskew(binarized);
-        List<Symbol> rawRecognize = rawRecognize(res);
-        MicrInfo micrInfo = findBorders(rawRecognize);
-
-        if (micrInfo.inLineRecognized < 20) {
-
-            //if there is possibility gradient background prevent some symbols to be clear-
-            //try another type of binarization
-
-            binarized = Binarize.otsuAdaptiveThreshold(pix, 3000, 3000, 3 * Binarize.OTSU_SMOOTH_X,
-                    3 * Binarize.OTSU_SMOOTH_Y, Binarize.OTSU_SCORE_FRACTION);
-            Bitmap res1 = unskew(binarized);
-            List<Symbol> rawRecognize1 = rawRecognize(res1);
-            MicrInfo micrInfo1 = findBorders(rawRecognize1);
-            Log.d("inline", micrInfo.inLineRecognized + ", " + micrInfo1.inLineRecognized);
-
-            if (micrInfo.inLineRecognized < micrInfo1.inLineRecognized) {
-
-                //compare the results from two binarizations and choose the best
-
-                res = res1;
-                rawRecognize = rawRecognize1;
-                micrInfo = micrInfo1;
-            }
-        }
-        List<Symbol> filteredSymbols = MicrRecognizer.filterTheline(rawRecognize, micrInfo);
-        CheckData checkData = MicrRecognizer.improve(res, filteredSymbols, micrInfo);
-        return checkData;
-    }
-
     public static CheckData recognize(Bitmap bm) {
 
         return recognizeCycle(bm, 0);
@@ -113,6 +80,41 @@ public class MicrRecognizer {
             return checkData;
         }
     }
+
+    private static CheckData recognize(Pix pix) {
+
+        Pix binarized = Binarize.sauvolaBinarizeTiled(pix);
+        Bitmap res = unskew(binarized);
+        List<Symbol> symbols = recognizeSymbols(res);
+        MicrInfo micrInfo = findBorders(symbols);
+
+        if (micrInfo.inLineRecognized < 20) {
+
+            //if there is possibility gradient background prevent some symbols to be clear-
+            //try another type of binarization
+
+            binarized = Binarize.otsuAdaptiveThreshold(pix, 3000, 3000, 3 * Binarize.OTSU_SMOOTH_X,
+                    3 * Binarize.OTSU_SMOOTH_Y, Binarize.OTSU_SCORE_FRACTION);
+            Bitmap res1 = unskew(binarized);
+            List<Symbol> rawRecognize1 = recognizeSymbols(res1);
+            MicrInfo micrInfo1 = findBorders(rawRecognize1);
+            Log.d("inline", micrInfo.inLineRecognized + ", " + micrInfo1.inLineRecognized);
+
+            if (micrInfo.inLineRecognized < micrInfo1.inLineRecognized) {
+
+                //compare the results from two binarizations and choose the best
+
+                res = res1;
+                symbols = rawRecognize1;
+                micrInfo = micrInfo1;
+            }
+        }
+        List<Symbol> filteredSymbols = MicrRecognizer.filterTheline(symbols, micrInfo);
+        CheckData checkData = MicrRecognizer.improve(res, filteredSymbols, micrInfo);
+        return checkData;
+    }
+
+
 
 
     public static File getCacheDir(Context context) {
@@ -236,7 +238,7 @@ public class MicrRecognizer {
         return baseApi;
     }
 
-    public static List<Symbol> rawRecognize(Bitmap bm) {
+    public static List<Symbol> recognizeSymbols(Bitmap bm) {
         TessBaseAPI baseApi = createTessBaseApi();
         baseApi.setImage(bm);
         List<Symbol> symbols = new ArrayList<>();
@@ -264,12 +266,12 @@ public class MicrRecognizer {
         return WriteFile.writeBitmap(Rotate.rotate(imag, s));
     }
 
-    public static MicrInfo findBorders(List<Symbol> rawSymbols) {
+    public static MicrInfo findBorders(List<Symbol> symbols) {
         int min = 1000;
         HashMap<Integer, Integer> bottom = new HashMap<>();
         HashMap<Integer, Integer> top = new HashMap<>();
 
-        for (Symbol rawSymbol : rawSymbols) {
+        for (Symbol rawSymbol : symbols) {
             Rect rect = rawSymbol.rect;
 
             if (rawSymbol.сonfidence > 70) {
@@ -379,35 +381,6 @@ public class MicrRecognizer {
         }
 
         return new CheckData(bm, builder.toString(), symbols, conf / symbols.size());
-    }
-
-    public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols) {
-        Canvas canvas = new Canvas(bm);
-        float prevBottom = 0;
-        String text = "";
-        Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        textPaint.setColor(Color.rgb(0xff, 0, 0));
-        for (Symbol symbol : symbols) {
-            textPaint.setTextSize((int) (symbol.rect.height() * scale / 1.5));
-            text = text + symbol.symbol;
-            canvas.drawText(symbol.symbol, symbol.rect.left, symbol.rect.top - (symbol.rect.height() + 10), textPaint);
-
-            String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.сonfidence);
-            Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            confPaint.setColor(Color.rgb(0, 0, 255));
-            confPaint.setTextSize((int) (symbol.rect.height() * scale / 3));
-            canvas.drawText(conf, symbol.rect.left, symbol.rect.top - (symbol.rect.height() - 10), confPaint);
-
-            Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            borderRectPaint.setColor(Color.rgb(0, 0, 0xff));
-            borderRectPaint.setStyle(Paint.Style.STROKE);
-            if (Math.abs(symbol.rect.bottom - prevBottom) > 20) {
-            }
-            canvas.drawRect(symbol.rect, borderRectPaint);
-            prevBottom = symbol.rect.bottom;
-
-        }
-        return bm;
     }
 
 }

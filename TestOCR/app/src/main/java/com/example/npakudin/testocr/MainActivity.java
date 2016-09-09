@@ -121,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
                 CheckData checkData = MicrRecognizer.recognize(src);
-                checkData.res = MicrRecognizer.drawRecText(checkData.res, scale, checkData.symbols);
+                checkData.res = Utils.drawRecText(checkData.res, scale, checkData.symbols);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 
