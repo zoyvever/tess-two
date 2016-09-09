@@ -30,10 +30,12 @@ import java.util.List;
 import java.util.Locale;
 
 
-public class TextRec {
+public class MicrRecognizer {
+
     private static final String LOGTAG = "TextRecognizer";
 
-    public static CheckData recognize(Pix pix) {
+    private static CheckData recognize(Pix pix) {
+
         Pix binarized = Binarize.sauvolaBinarizeTiled(pix);
         Bitmap res = unskew(binarized);
         List<Symbol> rawRecognize = rawRecognize(res);
@@ -60,12 +62,18 @@ public class TextRec {
                 micrInfo = micrInfo1;
             }
         }
-        List<TextRec.Symbol> filteredSymbols = TextRec.filterTheline(rawRecognize, micrInfo);
-        CheckData checkData = TextRec.improve(res, filteredSymbols, micrInfo);
+        List<Symbol> filteredSymbols = MicrRecognizer.filterTheline(rawRecognize, micrInfo);
+        CheckData checkData = MicrRecognizer.improve(res, filteredSymbols, micrInfo);
         return checkData;
     }
 
-    public static CheckData recognizeCycle(Bitmap bm, int iter) {
+    public static CheckData recognize(Bitmap bm) {
+
+        return recognizeCycle(bm, 0);
+    }
+
+    private static CheckData recognizeCycle(Bitmap bm, int iter) {
+
         Pix pix = ReadFile.readBitmap(bm);
         Bitmap res;
         CheckData checkData = recognize(pix);
@@ -106,28 +114,6 @@ public class TextRec {
         }
     }
 
-
-    public static class Symbol {
-        public String symbol;
-        public double сonfidence;
-        public Rect rect;
-
-    }
-
-    public static class MicrInfo {
-        public int top = 0;
-        public int bottom = 0;
-        public int minimumCharWidth = 0;
-        public int inLineRecognized = 0;
-
-        public MicrInfo(int top, int bottom, int minimumCharWidth, int inLineRecognized) {
-            this.top = top;
-            this.bottom = bottom;
-            this.minimumCharWidth = minimumCharWidth;
-            this.inLineRecognized = inLineRecognized;
-        }
-
-    }
 
     public static File getCacheDir(Context context) {
         File maxDir = null;
@@ -307,9 +293,9 @@ public class TextRec {
         Log.d(LOGTAG, "top: " + micrInfo.top + "; bottom: " + micrInfo.bottom + "; min: " + micrInfo.minimumCharWidth + "; recognized in Line: " + micrInfo.inLineRecognized);
         for (Symbol rawSymbol : rawSymbols) {
 //
-            Log.d("filtrConflog ", "" + rawSymbol.сonfidence + "; symbol1 " + rawSymbol.symbol +
-                    "; left " + rawSymbol.rect.left + "; right" + rawSymbol.rect.right + " widh " + rawSymbol.rect.width()
-                    + " top,bottom: " + rawSymbol.rect.top + " , " + rawSymbol.rect.bottom);
+//            Log.d("filtrConflog ", "" + rawSymbol.сonfidence + "; symbol1 " + rawSymbol.symbol +
+//                    "; left " + rawSymbol.rect.left + "; right" + rawSymbol.rect.right + " widh " + rawSymbol.rect.width()
+//                    + " top,bottom: " + rawSymbol.rect.top + " , " + rawSymbol.rect.bottom);
 
             Rect rect = rawSymbol.rect;
             Symbol symbol;

@@ -1,0 +1,13 @@
+package com.example.npakudin.testocr;
+
+import android.graphics.Rect;
+
+/**
+ * Created by npakudin on 09/09/16
+ */
+public class Symbol {
+    public String symbol;
+    public double сonfidence;
+    public Rect rect;
+
+}

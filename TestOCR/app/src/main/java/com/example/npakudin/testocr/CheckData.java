@@ -1,7 +1,6 @@
 package com.example.npakudin.testocr;
 
 import android.graphics.Bitmap;
-import android.util.Log;
 
 import java.util.List;
 import java.util.regex.Matcher;
@@ -18,9 +17,9 @@ public class CheckData {
     public String checkNumber = "";
     public double confidence = 0;
     String toCut = "";
-    public List<TextRec.Symbol> symbols = null;
+    public List<Symbol> symbols = null;
 
-    public CheckData(Bitmap res, String wholeText, List<TextRec.Symbol> symbols, double confidence) {
+    public CheckData(Bitmap res, String wholeText, List<Symbol> symbols, double confidence) {
         this.res = res;
         this.wholeText = wholeText;
         this.symbols = symbols;

@@ -36,7 +36,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        TextRec.init(getApplicationContext());
+        MicrRecognizer.init(getApplicationContext());
 
         textViewRes = (TextView) findViewById(R.id.textViewRes);
         listView = (ListView) findViewById(R.id.listview);
@@ -120,20 +120,20 @@ public class MainActivity extends AppCompatActivity {
                 istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
-                CheckData checkData = TextRec.recognizeCycle(src,0);
-                checkData.res = TextRec.drawRecText(checkData.res, scale, checkData.symbols);
+                CheckData checkData = MicrRecognizer.recognize(src);
+                checkData.res = MicrRecognizer.drawRecText(checkData.res, scale, checkData.symbols);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 
                 checkData.realText = file.substring(0, file.length() - 5);
                 checkData.distance = levenshteinDistance(checkData.wholeText, checkData.realText);
 
-                double itemRecognition = (checkData.wholeText.length() - checkData.distance) / (file.length() - 5.0);
+                double itemRecognition = 1 - (checkData.distance / (double)checkData.realText.length());
                 allPrc = allPrc + itemRecognition;
                 if (itemRecognition == 1) {
                     successfullyRecognized++;
                 }
-                saveBitmap(checkData.res, file.substring(0, file.length() - 4));
+                //saveBitmap(checkData.res, file.substring(0, file.length() - 4));
 
                 if (checkData.distance == 0) {
                     checkData.res = null;
