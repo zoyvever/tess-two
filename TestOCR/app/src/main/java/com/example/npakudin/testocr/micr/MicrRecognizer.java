@@ -1,11 +1,7 @@
-package com.example.npakudin.testocr;
+package com.example.npakudin.testocr.micr;
 
 import android.content.Context;
-import android.content.res.AssetManager;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.Log;
 import android.util.Pair;
@@ -20,14 +16,9 @@ import com.googlecode.leptonica.android.WriteFile;
 import com.googlecode.tesseract.android.ResultIterator;
 import com.googlecode.tesseract.android.TessBaseAPI;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 
@@ -154,38 +145,6 @@ public class MicrRecognizer {
 
 
 
-    private static HashMap<Integer, Integer> fillTheMap(HashMap<Integer, Integer> map, Integer rect) {
-        if (map.get(rect) != null) {
-            map.put(rect, map.get(rect) + 1);
-        } else {
-            map.put(rect, 1);
-        }
-        return map;
-    }
-
-    public static int findMostFrequentItem(HashMap<Integer, Integer> map) {
-        int trueBorder = 0;
-        int freq = 0;
-
-        for (HashMap.Entry<Integer, Integer> entry : map.entrySet()) {
-            if (entry.getValue() >= freq) {
-                trueBorder = entry.getKey();
-                freq = entry.getValue();
-            }
-        }
-        return trueBorder;
-    }
-
-    public static int findTheLine(HashMap<Integer, Integer> map, int mostFrequentItem) {
-        int quantityOfRecognizedItems = 0;
-        for (HashMap.Entry<Integer, Integer> entry : map.entrySet()) {
-            if (entry.getKey() > mostFrequentItem - 5 && entry.getKey() < mostFrequentItem + 5) {
-                quantityOfRecognizedItems = quantityOfRecognizedItems + entry.getValue();
-            }
-        }
-        Log.d(LOGTAG, "quantity of recognized items in line: " + quantityOfRecognizedItems);
-        return quantityOfRecognizedItems;
-    }
 
     public static List<Symbol> recognizeSymbols(Bitmap bm) {
         TessBaseAPI baseApi = createTessBaseApi();
@@ -227,13 +186,13 @@ public class MicrRecognizer {
                 if ((rect.width()) < min) {
                     min = rect.width();
                 }
-                bottom = fillTheMap(bottom, rect.bottom);
-                top = fillTheMap(top, rect.top);
+                bottom = CalcUtils.fillTheMap(bottom, rect.bottom);
+                top = CalcUtils.fillTheMap(top, rect.top);
             }
         }
-        int topBorder = findMostFrequentItem(top);
-        int bottomBorder = findMostFrequentItem(bottom);
-        int inLineRecognized = findTheLine(top, topBorder);
+        int topBorder = CalcUtils.findMostFrequentItem(top);
+        int bottomBorder = CalcUtils.findMostFrequentItem(bottom);
+        int inLineRecognized = CalcUtils.findTheLine(top, topBorder);
         int pogr = (int) (0.6 * (topBorder - bottomBorder));
         return new MicrInfo(topBorder + pogr, bottomBorder - pogr, min, inLineRecognized);
     }

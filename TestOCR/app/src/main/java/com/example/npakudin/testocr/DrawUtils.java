@@ -5,13 +5,15 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 
+import com.example.npakudin.testocr.micr.Symbol;
+
 import java.util.List;
 import java.util.Locale;
 
 /**
  * Created by npakudin on 10/09/16
  */
-public class Utils {
+public class DrawUtils {
 
 
     public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols, String realText) {

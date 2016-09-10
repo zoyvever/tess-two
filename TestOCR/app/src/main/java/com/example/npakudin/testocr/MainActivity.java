@@ -16,6 +16,9 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.example.npakudin.testocr.micr.CheckData;
+import com.example.npakudin.testocr.micr.MicrRecognizer;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -126,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
                 CheckData checkData = MicrRecognizer.recognize(src);
-                checkData.res = Utils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText);
+                checkData.res = DrawUtils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText);
 
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 

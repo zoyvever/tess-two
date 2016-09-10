@@ -1,4 +1,4 @@
-package com.example.npakudin.testocr;
+package com.example.npakudin.testocr.micr;
 
 import android.graphics.Bitmap;
 
