@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 
 public class MicrRecognizer {
@@ -75,47 +76,47 @@ public class MicrRecognizer {
         return Bitmap.createBitmap(bm, 0, top-width, bm.getWidth(), 2*width);
     }
 
-    private static CheckData recognizeCycle(Bitmap bm, int iter) {
-
-        Pix pix = ReadFile.readBitmap(bm);
-        Bitmap res;
-        CheckData checkData = recognize(pix);
-        Log.d("con", "conf: " + checkData.confidence+"; size: "+checkData.symbols.size());
-
-        //if confidence is obviously lower than needed- try different ways to resize the image
-
-        if ((checkData.confidence < 40 | checkData.symbols.size() < 6) && iter < 1) {
-
-            //if there is not enough recognized symbols to find their borders to cut the image,
-            //we try to scale it first,so binarization will have another chance to work fine
-
-            res = WriteFile.writeBitmap(Scale.scale(pix, (float) 0.8));
-            iter = 1;
-            return recognizeCycle(res, iter);
-
-        } else if (checkData.confidence < 70 && iter < 2) {
-
-            //to crop the image we need to retrieve top and bottom
-
-            int top = 1000;
-            int bottom = 0;
-            for (Symbol symbol : checkData.symbols) {
-                if (top > symbol.rect.top) {
-                    top = symbol.rect.top;
-                }
-                if (bottom < symbol.rect.bottom) {
-                    bottom = symbol.rect.bottom;
-                }
-            }
-            //in case of skew take a 2 sizes of the line which allows 6 degrees skew
-            int width=(bottom-top);
-            res = Bitmap.createBitmap(bm, 0, top-width, bm.getWidth(), 2*width);
-            iter = 2;
-            return recognizeCycle(res, iter);
-        } else {
-            return checkData;
-        }
-    }
+//    private static CheckData recognizeCycle(Bitmap bm, int iter) {
+//
+//        Pix pix = ReadFile.readBitmap(bm);
+//        Bitmap res;
+//        CheckData checkData = recognize(pix);
+//        Log.d("con", "conf: " + checkData.confidence+"; size: "+checkData.symbols.size());
+//
+//        //if confidence is obviously lower than needed- try different ways to resize the image
+//
+//        if ((checkData.confidence < 40 | checkData.symbols.size() < 6) && iter < 1) {
+//
+//            //if there is not enough recognized symbols to find their borders to cut the image,
+//            //we try to scale it first,so binarization will have another chance to work fine
+//
+//            res = WriteFile.writeBitmap(Scale.scale(pix, (float) 0.8));
+//            iter = 1;
+//            return recognizeCycle(res, iter);
+//
+//        } else if (checkData.confidence < 70 && iter < 2) {
+//
+//            //to crop the image we need to retrieve top and bottom
+//
+//            int top = 1000;
+//            int bottom = 0;
+//            for (Symbol symbol : checkData.symbols) {
+//                if (top > symbol.rect.top) {
+//                    top = symbol.rect.top;
+//                }
+//                if (bottom < symbol.rect.bottom) {
+//                    bottom = symbol.rect.bottom;
+//                }
+//            }
+//            //in case of skew take a 2 sizes of the line which allows 6 degrees skew
+//            int width=(bottom-top);
+//            res = Bitmap.createBitmap(bm, 0, top-width, bm.getWidth(), 2*width);
+//            iter = 2;
+//            return recognizeCycle(res, iter);
+//        } else {
+//            return checkData;
+//        }
+//    }
 
     private static CheckData recognize(Pix pix) {
 
@@ -153,32 +154,6 @@ public class MicrRecognizer {
 
 
 
-    public static File getCacheDir(Context context) {
-        File maxDir = null;
-        long maxSpace = -1;
-
-        Log.d(LOGTAG, "getCacheDir()");
-
-        for (File dir : context.getExternalCacheDirs()) {
-            if (dir != null) {
-                long space = dir.getFreeSpace();
-
-                if (space > maxSpace) {
-                    maxSpace = space;
-                    maxDir = dir;
-                }
-            } else {
-                Log.w(LOGTAG, "cache dir is null");
-            }
-        }
-
-        if (maxDir != null) {
-            return maxDir;
-        } else {
-            return null;
-        }
-    }
-
     private static HashMap<Integer, Integer> fillTheMap(HashMap<Integer, Integer> map, Integer rect) {
         if (map.get(rect) != null) {
             map.put(rect, map.get(rect) + 1);
@@ -210,68 +185,6 @@ public class MicrRecognizer {
         }
         Log.d(LOGTAG, "quantity of recognized items in line: " + quantityOfRecognizedItems);
         return quantityOfRecognizedItems;
-    }
-
-    private static String mcrFilePath = null;
-
-    public static File init(Context context) {
-        File baseDir = getCacheDir(context);
-        if (baseDir == null) {
-            throw new IllegalStateException("Cannot access temporary dir");
-        }
-        File tessdata = new File(baseDir, "tessdata");
-        File file = new File(tessdata, "mcr.traineddata");
-
-        if (!file.delete()) {
-            Log.w(LOGTAG, "Cannot delete file");
-        }
-        if (!tessdata.delete()) {
-            Log.w(LOGTAG, "Cannot delete tessdata");
-        }
-        Log.w(LOGTAG, "tessdata.exists() :" + tessdata.exists());
-        if (!tessdata.mkdirs()) {
-            Log.w(LOGTAG, "Cannot mkdirs");
-        }
-
-        Log.w(LOGTAG, "filename: " + file.getAbsolutePath());
-        try {
-            Log.w(LOGTAG, "file.exists: " + file.exists() + " file.canWrite: " + file.canWrite());
-
-
-            FileOutputStream outputStream = new FileOutputStream(file);
-            AssetManager assetManager = context.getAssets();
-            InputStream inputStream = assetManager.open("tessdata/mcr.traineddata");
-
-            try {
-                byte[] buffer = new byte[0x80000]; // Adjust if you want
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                    Log.w("MainActivity.onCreate", "bytesRead: " + bytesRead);
-                }
-            } finally {
-                try {
-                    outputStream.close();
-                } catch (IOException ignored) {
-                }
-                try {
-                    if (inputStream != null) inputStream.close();
-                } catch (IOException ignored) {
-                }
-            }
-        } catch (Exception e) {
-            Log.e(LOGTAG, "copy", e);
-        }
-        Log.wtf(LOGTAG, "file: " + file.exists() + " len : " + file.length());
-
-        mcrFilePath = baseDir.getAbsolutePath();
-        return baseDir;
-    }
-
-    public static TessBaseAPI createTessBaseApi() {
-        TessBaseAPI baseApi = new TessBaseAPI();
-        baseApi.init(mcrFilePath, "mcr");
-        return baseApi;
     }
 
     public static List<Symbol> recognizeSymbols(Bitmap bm) {
@@ -399,7 +312,7 @@ public class MicrRecognizer {
                 symbol.rect = oneCharRect;
                 oneCharRect = null;
             } else if ((rawSymbol.rect.width() < micrInfo.minimumCharWidth) &&
-                    (rawSymbol.symbol != "1" && rawSymbol.сonfidence < 60)) {
+                    (!Objects.equals(rawSymbol.symbol, "1") && rawSymbol.сonfidence < 60)) {
                 //if we dont have first part of letter in oneCharRect and the width of the symbl says that that it is here
                 oneCharRect = rawSymbol.rect;
                 continue;
@@ -419,4 +332,17 @@ public class MicrRecognizer {
         return new CheckData(bm, builder.toString(), symbols, conf / symbols.size());
     }
 
+
+
+    private static String mcrFilePath = null;
+
+    public static void init(Context context) {
+        mcrFilePath = Asset2File.init(context);
+    }
+
+    public static TessBaseAPI createTessBaseApi() {
+        TessBaseAPI baseApi = new TessBaseAPI();
+        baseApi.init(mcrFilePath, "mcr");
+        return baseApi;
+    }
 }
