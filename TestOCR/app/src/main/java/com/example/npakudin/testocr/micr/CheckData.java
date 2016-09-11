@@ -18,6 +18,7 @@ public class CheckData {
     public double confidence = 0;
     String toCut = "";
     public List<Symbol> symbols = null;
+    public String filename;
 
     public CheckData(Bitmap res, String wholeText, List<Symbol> symbols, double confidence) {
         this.res = res;

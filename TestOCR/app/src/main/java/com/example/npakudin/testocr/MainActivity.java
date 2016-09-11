@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -58,8 +59,11 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     holder = (ViewHolder) convertView.getTag();
                 }
-                holder.imageView().setImageBitmap(entities.get(position).res);
-                holder.textView().setText(entities.get(position).distance + "");
+
+                CheckData checkData = entities.get(position);
+
+                holder.imageView().setImageBitmap(checkData.res);
+                holder.textView().setText(checkData.distance + " - " + checkData.filename);
 
                 return convertView;
             }
@@ -99,9 +103,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 //
+        Log.d(TAG, "onResume, start, isRecognized = " + isRecognized);
         if (!isRecognized) {
             recognize();
             isRecognized = true;
+            Log.d(TAG, "onResume, recognized, isRecognized = " + isRecognized);
             adapter.clear();
             adapter.addAll(entities);
             adapter.notifyDataSetChanged();
@@ -119,21 +125,19 @@ public class MainActivity extends AppCompatActivity {
 
         int recognizedChecks = 0;
 
-        double allPrc = 0;
         AssetManager assetManager = getApplicationContext().getAssets();
-        InputStream istr;
         try {
             String[] list = getAssets().list("img");
             Arrays.sort(list);
+
             for (String file : list) {
                 Log.d(TAG, file);
-                istr = assetManager.open("img/" + file);
+                InputStream istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
                 Log.d(TAG, "file: " + file + "; recognizing...");
                 CheckData checkData = MicrRecognizer.recognize(src);
                 checkData.res = DrawUtils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText);
-                Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 
                 checkData.realText = file.substring(0, file.length() - 5);
                 checkData.distance = levenshteinDistance(checkData.wholeText, checkData.realText);
@@ -148,9 +152,11 @@ public class MainActivity extends AppCompatActivity {
                 if (checkData.distance == 0) {
                     checkData.res = null;
                 } else {
+                    Log.d(TAG, "file: " + file + "; src           : " + checkData.realText);
                     Log.d(TAG, "file: " + file + "; BAD recognized: " + checkData.wholeText);
                 }
 
+                checkData.filename = file;
                 entities.add(checkData);
             }
 

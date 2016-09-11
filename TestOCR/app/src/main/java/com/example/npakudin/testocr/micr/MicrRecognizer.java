@@ -63,8 +63,9 @@ public class MicrRecognizer {
             }
         }
         //in case of skew take a 2 sizes of the line which allows 6 degrees skew
-        int width=(bottom-top);
-        return Bitmap.createBitmap(bm, 0, top-width, bm.getWidth(), 2*width);
+        int height=(bottom-top);
+        int y = Math.max(0, top-height);
+        return Bitmap.createBitmap(bm, 1, y, bm.getWidth() - 1, Math.min(bm.getHeight() - y, 2*height));
     }
 
     private static CheckData recognize(Pix pix) {
