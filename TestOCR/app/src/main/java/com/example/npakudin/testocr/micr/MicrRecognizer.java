@@ -28,10 +28,10 @@ public class MicrRecognizer {
 
     public static CheckData recognize(Bitmap bm) {
 
-        return recognizeCycle0(bm);
+        return recognizeCycle(bm);
     }
 
-    private static CheckData recognizeCycle0(Bitmap bm) {
+    private static CheckData recognizeCycle(Bitmap bm) {
 
         Pix pix = ReadFile.readBitmap(bm);
         CheckData checkData = recognize(pix);
@@ -67,53 +67,11 @@ public class MicrRecognizer {
         return Bitmap.createBitmap(bm, 0, top-width, bm.getWidth(), 2*width);
     }
 
-//    private static CheckData recognizeCycle(Bitmap bm, int iter) {
-//
-//        Pix pix = ReadFile.readBitmap(bm);
-//        Bitmap res;
-//        CheckData checkData = recognize(pix);
-//        Log.d("con", "conf: " + checkData.confidence+"; size: "+checkData.symbols.size());
-//
-//        //if confidence is obviously lower than needed- try different ways to resize the image
-//
-//        if ((checkData.confidence < 40 | checkData.symbols.size() < 6) && iter < 1) {
-//
-//            //if there is not enough recognized symbols to find their borders to cut the image,
-//            //we try to scale it first,so binarization will have another chance to work fine
-//
-//            res = WriteFile.writeBitmap(Scale.scale(pix, (float) 0.8));
-//            iter = 1;
-//            return recognizeCycle(res, iter);
-//
-//        } else if (checkData.confidence < 70 && iter < 2) {
-//
-//            //to crop the image we need to retrieve top and bottom
-//
-//            int top = 1000;
-//            int bottom = 0;
-//            for (Symbol symbol : checkData.symbols) {
-//                if (top > symbol.rect.top) {
-//                    top = symbol.rect.top;
-//                }
-//                if (bottom < symbol.rect.bottom) {
-//                    bottom = symbol.rect.bottom;
-//                }
-//            }
-//            //in case of skew take a 2 sizes of the line which allows 6 degrees skew
-//            int width=(bottom-top);
-//            res = Bitmap.createBitmap(bm, 0, top-width, bm.getWidth(), 2*width);
-//            iter = 2;
-//            return recognizeCycle(res, iter);
-//        } else {
-//            return checkData;
-//        }
-//    }
-
     private static CheckData recognize(Pix pix) {
 
-        Pix binarized = Binarize.sauvolaBinarizeTiled(pix);
-        Bitmap res = unskew(binarized);
-        List<Symbol> symbols = recognizeSymbols(res);
+        Pix savuolaBinarized = Binarize.sauvolaBinarizeTiled(pix);
+        Bitmap bitmap = unskew(savuolaBinarized);
+        List<Symbol> symbols = recognizeSymbols(bitmap);
         MicrInfo micrInfo = findBorders(symbols);
 
         if (micrInfo.inLineRecognized < 20) {
@@ -121,28 +79,24 @@ public class MicrRecognizer {
             //if there is possibility gradient background prevent some symbols to be clear-
             //try another type of binarization
 
-            binarized = Binarize.otsuAdaptiveThreshold(pix, 3000, 3000, 3 * Binarize.OTSU_SMOOTH_X,
+            Pix otsuBinarized = Binarize.otsuAdaptiveThreshold(pix, 3000, 3000, 3 * Binarize.OTSU_SMOOTH_X,
                     3 * Binarize.OTSU_SMOOTH_Y, Binarize.OTSU_SCORE_FRACTION);
-            Bitmap res1 = unskew(binarized);
-            List<Symbol> rawRecognize1 = recognizeSymbols(res1);
-            MicrInfo micrInfo1 = findBorders(rawRecognize1);
-            Log.d("inline", micrInfo.inLineRecognized + ", " + micrInfo1.inLineRecognized);
+            Bitmap otsuBitmap = unskew(otsuBinarized);
+            List<Symbol> otsuSymbols = recognizeSymbols(otsuBitmap);
+            MicrInfo otsuMicrInfo = findBorders(otsuSymbols);
 
-            if (micrInfo.inLineRecognized < micrInfo1.inLineRecognized) {
+            if (micrInfo.inLineRecognized < otsuMicrInfo.inLineRecognized) {
 
                 //compare the results from two binarizations and choose the best
-
-                res = res1;
-                symbols = rawRecognize1;
-                micrInfo = micrInfo1;
+                bitmap = otsuBitmap;
+                symbols = otsuSymbols;
+                micrInfo = otsuMicrInfo;
             }
         }
         List<Symbol> filteredSymbols = MicrRecognizer.filterTheline(symbols, micrInfo);
-        CheckData checkData = MicrRecognizer.improve(res, filteredSymbols, micrInfo);
+        CheckData checkData = MicrRecognizer.joinThinSymbols(bitmap, filteredSymbols, micrInfo);
         return checkData;
     }
-
-
 
 
 
@@ -176,8 +130,8 @@ public class MicrRecognizer {
 
     public static MicrInfo findBorders(List<Symbol> symbols) {
         int min = 1000;
-        HashMap<Integer, Integer> bottom = new HashMap<>();
-        HashMap<Integer, Integer> top = new HashMap<>();
+        HashMap<Integer, Integer> bottomFrequencies = new HashMap<>();
+        HashMap<Integer, Integer> topFrequencies = new HashMap<>();
 
         for (Symbol rawSymbol : symbols) {
             Rect rect = rawSymbol.rect;
@@ -186,54 +140,61 @@ public class MicrRecognizer {
                 if ((rect.width()) < min) {
                     min = rect.width();
                 }
-                bottom = CalcUtils.fillTheMap(bottom, rect.bottom);
-                top = CalcUtils.fillTheMap(top, rect.top);
+
+                Integer bottomNewFrequency = bottomFrequencies.get(rect.bottom);
+                bottomFrequencies.put(rect.bottom, 1 + (bottomNewFrequency == null ? 0 : bottomNewFrequency));
+
+                Integer topNewFrequency = bottomFrequencies.get(rect.bottom);
+                bottomFrequencies.put(rect.bottom, 1 + (topNewFrequency == null ? 0 : topNewFrequency));
             }
         }
-        int topBorder = CalcUtils.findMostFrequentItem(top);
-        int bottomBorder = CalcUtils.findMostFrequentItem(bottom);
-        int inLineRecognized = CalcUtils.findTheLine(top, topBorder);
-        int pogr = (int) (0.6 * (topBorder - bottomBorder));
-        return new MicrInfo(topBorder + pogr, bottomBorder - pogr, min, inLineRecognized);
+        int topBorder = CalcUtils.findMostFrequentItem(topFrequencies);
+        int bottomBorder = CalcUtils.findMostFrequentItem(bottomFrequencies);
+        int inLineRecognized = CalcUtils.findTheLine(topFrequencies, topBorder, 5); // border = 5
+        int tolerance = (int) (0.6 * (topBorder - bottomBorder));
+        return new MicrInfo(topBorder + tolerance, bottomBorder - tolerance, min, inLineRecognized);
     }
 
-    public static List<Symbol> filterTheline(List<Symbol> rawSymbols, MicrInfo micrInfo) {
+    /**
+     * Remove overlapping symbols
+     *
+     */
+    public static List<Symbol> filterTheline(List<Symbol> symbols, MicrInfo micrInfo) {
+
         int right = 0;
-        List<Symbol> symbols = new ArrayList<>();
-        Log.d(LOGTAG, "top: " + micrInfo.top + "; bottom: " + micrInfo.bottom + "; min: " + micrInfo.minimumCharWidth + "; recognized in Line: " + micrInfo.inLineRecognized);
-        for (Symbol rawSymbol : rawSymbols) {
-//
-//            Log.d("filtrConflog ", "" + rawSymbol.сonfidence + "; symbol1 " + rawSymbol.symbol +
-//                    "; left " + rawSymbol.rect.left + "; right" + rawSymbol.rect.right + " widh " + rawSymbol.rect.width()
-//                    + " top,bottom: " + rawSymbol.rect.top + " , " + rawSymbol.rect.bottom);
+        List<Symbol> filteredSymbols = new ArrayList<>();
+        for (Symbol symbol : symbols) {
 
-            Rect rect = rawSymbol.rect;
-            Symbol symbol;
-            if ((rect.bottom < micrInfo.bottom && rect.top > micrInfo.top) && rawSymbol.сonfidence > 20) {
-
-                if (rect.left <= right) {
-                    //if the rectangle starts before the last one ends- throw it away
-                    continue;
-                } else {
+            Rect rect = symbol.rect;
+            if (micrInfo.isInside(rect) && symbol.сonfidence > 20) {
+                //if the rectangle starts before the last one ends- throw it away
+                if (rect.left > right) {
                     //otherwise remember when it ends for future comparing
                     right = rect.right;
-                    symbol = rawSymbol;
-                    symbols.add(symbol);
+                    filteredSymbols.add(symbol);
                 }
             }
         }
-        return symbols;
+        return filteredSymbols;
     }
 
-    public static CheckData improve(Bitmap bm, List<Symbol> rawSymbols, MicrInfo micrInfo) {
+    /**
+     * Joins symbols if there are 2 or 3 symbols in a row are too thin
+     * Then tries to recognize again
+     *
+     */
+    public static CheckData joinThinSymbols(Bitmap bm, List<Symbol> rawSymbols, MicrInfo micrInfo) {
+
         StringBuilder builder = new StringBuilder();
         TessBaseAPI singleCharRecognition = createTessBaseApi();
         singleCharRecognition.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
         singleCharRecognition.setImage(bm);
+
         double conf = 0;
         double minconf = 100;
         List<Symbol> symbols = new ArrayList<>();
         Rect oneCharRect = null;
+
         for (Symbol rawSymbol : rawSymbols) {
             Symbol symbol = new Symbol();
             if (oneCharRect != null) {
@@ -272,7 +233,7 @@ public class MicrRecognizer {
                 oneCharRect = null;
             } else if ((rawSymbol.rect.width() < micrInfo.minimumCharWidth) &&
                     (!Objects.equals(rawSymbol.symbol, "1") && rawSymbol.сonfidence < 60)) {
-                //if we dont have first part of letter in oneCharRect and the width of the symbl says that that it is here
+                //if we dont have first part of letter in oneCharRect and the width of the symbol says that that it is here
                 oneCharRect = rawSymbol.rect;
                 continue;
             } else {

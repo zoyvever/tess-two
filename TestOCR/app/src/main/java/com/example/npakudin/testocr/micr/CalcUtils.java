@@ -9,15 +9,6 @@ import java.util.HashMap;
  */
 public class CalcUtils {
 
-    public static HashMap<Integer, Integer> fillTheMap(HashMap<Integer, Integer> map, Integer rect) {
-        if (map.get(rect) != null) {
-            map.put(rect, map.get(rect) + 1);
-        } else {
-            map.put(rect, 1);
-        }
-        return map;
-    }
-
     public static int findMostFrequentItem(HashMap<Integer, Integer> map) {
         int trueBorder = 0;
         int freq = 0;
@@ -31,10 +22,10 @@ public class CalcUtils {
         return trueBorder;
     }
 
-    public static int findTheLine(HashMap<Integer, Integer> map, int mostFrequentItem) {
+    public static int findTheLine(HashMap<Integer, Integer> map, int mostFrequentItem, int border) {
         int quantityOfRecognizedItems = 0;
         for (HashMap.Entry<Integer, Integer> entry : map.entrySet()) {
-            if (entry.getKey() > mostFrequentItem - 5 && entry.getKey() < mostFrequentItem + 5) {
+            if (entry.getKey() > mostFrequentItem - border && entry.getKey() < mostFrequentItem + border) {
                 quantityOfRecognizedItems = quantityOfRecognizedItems + entry.getValue();
             }
         }
