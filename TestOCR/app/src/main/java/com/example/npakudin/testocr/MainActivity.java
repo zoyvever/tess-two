@@ -24,6 +24,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -123,14 +124,15 @@ public class MainActivity extends AppCompatActivity {
         InputStream istr;
         try {
             String[] list = getAssets().list("img");
+            Arrays.sort(list);
             for (String file : list) {
                 Log.d(TAG, file);
                 istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
+                Log.d(TAG, "file: " + file + "; recognizing...");
                 CheckData checkData = MicrRecognizer.recognize(src);
                 checkData.res = DrawUtils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText);
-
                 Log.d(TAG, "file: " + file + "; recognized: " + checkData.wholeText);
 
                 checkData.realText = file.substring(0, file.length() - 5);
@@ -145,6 +147,8 @@ public class MainActivity extends AppCompatActivity {
 
                 if (checkData.distance == 0) {
                     checkData.res = null;
+                } else {
+                    Log.d(TAG, "file: " + file + "; BAD recognized: " + checkData.wholeText);
                 }
 
                 entities.add(checkData);

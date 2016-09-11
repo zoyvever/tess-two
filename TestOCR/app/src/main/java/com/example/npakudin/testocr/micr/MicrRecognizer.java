@@ -39,12 +39,12 @@ public class MicrRecognizer {
         if (checkData.confidence > 70) {
             return checkData;
         }
-        Log.d(LOGTAG, "checkData.confidence <= 70 : " + checkData.confidence);
+        Log.w(LOGTAG, "checkData.confidence <= 70 : " + checkData.confidence);
         if (checkData.confidence > 40) {
             Bitmap cropped = cropBitmap(bm, checkData);
             return recognize(ReadFile.readBitmap(cropped));
         }
-        Log.d(LOGTAG, "checkData.confidence <= 40 : " + checkData.confidence);
+        Log.w(LOGTAG, "checkData.confidence <= 40 : " + checkData.confidence);
         Bitmap scaled = WriteFile.writeBitmap(Scale.scale(pix, (float) 0.8));
         CheckData res = recognize(scaled);
         return res;
@@ -144,8 +144,8 @@ public class MicrRecognizer {
                 Integer bottomNewFrequency = bottomFrequencies.get(rect.bottom);
                 bottomFrequencies.put(rect.bottom, 1 + (bottomNewFrequency == null ? 0 : bottomNewFrequency));
 
-                Integer topNewFrequency = bottomFrequencies.get(rect.bottom);
-                bottomFrequencies.put(rect.bottom, 1 + (topNewFrequency == null ? 0 : topNewFrequency));
+                Integer topNewFrequency = bottomFrequencies.get(rect.top);
+                topFrequencies.put(rect.top, 1 + (topNewFrequency == null ? 0 : topNewFrequency));
             }
         }
         int topBorder = CalcUtils.findMostFrequentItem(topFrequencies);
@@ -216,7 +216,7 @@ public class MicrRecognizer {
                 //use value for 'right' from the last rect
                 singleCharRecognition.setRectangle(oneCharRect);
                 String s = singleCharRecognition.getUTF8Text();
-                Log.d("recognized string", s);
+                Log.w("recognized string", s);
                 if (s.trim().length() > 0) {
                     if (s.matches("\\s*\\d|a\\s*")) {
                         symbol.symbol = "a";
@@ -227,7 +227,7 @@ public class MicrRecognizer {
                 } else {
                     symbol.symbol = "a";
                     symbol.сonfidence = 40.0;
-                    Log.d(LOGTAG, "bad recognition");
+                    Log.w(LOGTAG, "bad recognition");
                 }
                 symbol.rect = oneCharRect;
                 oneCharRect = null;

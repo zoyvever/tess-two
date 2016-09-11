@@ -79,7 +79,7 @@ public class Asset2File {
         File maxDir = null;
         long maxSpace = -1;
 
-        Log.d(LOGTAG, "getCacheDir()");
+        Log.w(LOGTAG, "getCacheDir()");
 
         for (File dir : context.getExternalCacheDirs()) {
             if (dir != null) {
