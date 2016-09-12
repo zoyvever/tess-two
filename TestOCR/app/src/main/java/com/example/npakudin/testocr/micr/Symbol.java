@@ -8,14 +8,23 @@ import android.graphics.Rect;
 public class Symbol {
 
     public String symbol;
-    public double сonfidence;
+    public double confidence;
     public Rect rect;
+
+    public Symbol(String symbol, double confidence, Rect rect) {
+        this.symbol = symbol;
+        this.confidence = confidence;
+        this.rect = rect;
+    }
+
+    public Symbol() {
+    }
 
     @Override
     public String toString() {
         return "Symbol{" +
                 "symbol='" + symbol + '\'' +
-                ", сonfidence=" + сonfidence +
+                ", confidence=" + confidence +
                 ", rect=" + rect +
                 '}';
     }

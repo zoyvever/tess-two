@@ -1,5 +1,6 @@
 package com.example.npakudin.testocr.micr;
 
+import android.graphics.Rect;
 import android.util.Log;
 
 import java.util.HashMap;
@@ -32,4 +33,18 @@ public class CalcUtils {
         return quantityOfRecognizedItems;
     }
 
+    public static void putFrequency(HashMap<Integer, Integer> bottomFrequencies, int bottom) {
+
+        Integer bottomNewFrequency = bottomFrequencies.get(bottom);
+        bottomFrequencies.put(bottom, 1 + (bottomNewFrequency == null ? 0 : bottomNewFrequency));
+    }
+
+    public static Rect rectWithMargins(Rect srcRect, int margin, Rect borderRect) {
+
+        return new Rect(
+                Math.max(borderRect.left, srcRect.left - margin),
+                Math.max(borderRect.top, srcRect.top - margin),
+                Math.min(borderRect.right, srcRect.right + margin),
+                Math.min(borderRect.bottom, srcRect.bottom + margin));
+    }
 }

@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 
 public class CheckData {
 
+    public boolean isOk;
     public int distance = -1;
     public String realText = "";
     public Bitmap res;
@@ -19,12 +20,16 @@ public class CheckData {
     String toCut = "";
     public List<Symbol> symbols = null;
     public String filename;
+    public String descr;
 
     public CheckData(Bitmap res, String wholeText, List<Symbol> symbols, double confidence) {
         this.res = res;
         this.wholeText = wholeText;
         this.symbols = symbols;
         this.confidence=confidence;
+
+        this.isOk = !wholeText.contains("%") && !wholeText.contains("#") && !wholeText.contains("@") &&
+            confidence >= 55 && wholeText.length() >= 20;
 
         toCut = wholeText;
         routingNumber = findPattern("a\\d{9}(?!c|\\d)|\\d{9}a", "a");

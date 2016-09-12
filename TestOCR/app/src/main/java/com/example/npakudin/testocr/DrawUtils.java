@@ -39,7 +39,7 @@ public class DrawUtils {
             text = text + symbol.symbol;
             canvas.drawText(symbol.symbol, symbol.rect.left, symbol.rect.top, isEq ? okTextPaint : textPaint);
 
-            String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.сonfidence);
+            String conf = String.format(Locale.ENGLISH, "%02.0f", symbol.confidence);
             Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             confPaint.setColor(Color.rgb(0, 0, 255));
             confPaint.setTextSize((int) (symbol.rect.height() * scale / 3));

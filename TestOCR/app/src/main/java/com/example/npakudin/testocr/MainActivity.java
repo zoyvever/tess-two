@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -26,15 +27,16 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Logger;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     TextView textViewRes;
     ListView listView;
-    List<CheckData> entities = new ArrayList<>();
     ArrayAdapter<CheckData> adapter;
+
+    static List<CheckData> entities = new ArrayList<>();
+    static String info;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +65,11 @@ public class MainActivity extends AppCompatActivity {
                 CheckData checkData = entities.get(position);
 
                 holder.imageView().setImageBitmap(checkData.res);
-                holder.textView().setText(checkData.distance + " - " + checkData.filename);
+
+                boolean isEq = checkData.isOk == (checkData.distance == 0);
+
+                holder.textView().setText((isEq ? "" : "BAD ") + checkData.distance + " - " + checkData.filename + " - " + checkData.descr);
+                holder.textView().setTextColor(isEq ? Color.rgb(0,0,0) : Color.rgb(0xff,0,0));
 
                 return convertView;
             }
@@ -97,21 +103,23 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private boolean isRecognized = false;
+    //private boolean isRecognized = false;
 
     @Override
     protected void onResume() {
         super.onResume();
 //
-        Log.d(TAG, "onResume, start, isRecognized = " + isRecognized);
-        if (!isRecognized) {
+        //Log.d(TAG, "onResume, start, isRecognized = " + isRecognized);
+        if (entities.size() == 0) {
             recognize();
-            isRecognized = true;
-            Log.d(TAG, "onResume, recognized, isRecognized = " + isRecognized);
-            adapter.clear();
-            adapter.addAll(entities);
-            adapter.notifyDataSetChanged();
+            //Log.d(TAG, "onResume, recognized, isRecognized = " + isRecognized);
         }
+
+        adapter.clear();
+        adapter.addAll(entities);
+        adapter.notifyDataSetChanged();
+
+        textViewRes.setText(info);
     }
 
     private void recognize() {
@@ -160,10 +168,9 @@ public class MainActivity extends AppCompatActivity {
                 entities.add(checkData);
             }
 
-            String info = "symbolErrors: " + symbolErrors + " / " + totalSymbols + " = " + (symbolErrors/(double)totalSymbols) +
+            info = "symbolErrors: " + symbolErrors + " / " + totalSymbols + " = " + (symbolErrors/(double)totalSymbols) +
                     ", recognizedChecks: " + recognizedChecks + " / " + list.length + " = " + (recognizedChecks / (double)list.length);
             Log.d("MainActivity", info);
-            textViewRes.setText(info);
 
 
             for (CheckData item : entities) {
