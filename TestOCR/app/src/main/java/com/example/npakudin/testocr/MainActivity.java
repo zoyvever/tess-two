@@ -9,6 +9,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,7 +27,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -157,6 +161,8 @@ public class MainActivity extends AppCompatActivity {
                 }
                 //saveBitmap(checkData.res, file.substring(0, file.length() - 4));
 
+                //checkData.res = null;
+
                 if (checkData.distance == 0) {
                     checkData.res = null;
                 } else {
@@ -171,6 +177,22 @@ public class MainActivity extends AppCompatActivity {
             info = "symbolErrors: " + symbolErrors + " / " + totalSymbols + " = " + (symbolErrors/(double)totalSymbols) +
                     ", recognizedChecks: " + recognizedChecks + " / " + list.length + " = " + (recognizedChecks / (double)list.length);
             Log.d("MainActivity", info);
+
+
+            Log.d(TAG, "Char width");
+            handleStats(MicrRecognizer.globalWidth);
+            Log.d(TAG, "Char height");
+            handleStats(MicrRecognizer.globalHeight);
+
+//            for (Map.Entry<String, Map<Integer, Integer>> letterItem : MicrRecognizer.globalHeight.entrySet()) {
+//                Map<Integer, Integer> map = letterItem.getValue();
+//                Log.d(TAG, letterItem.getKey());
+//                for (Integer item : map.keySet()) {
+//                    Log.d(TAG, item + ", " + map.get(item));
+//                }
+//            }
+
+
 
 
             for (CheckData item : entities) {
@@ -191,6 +213,44 @@ public class MainActivity extends AppCompatActivity {
 
         } catch (IOException e) {
             Log.e(TAG, e.toString());
+        }
+    }
+
+    private void handleStats(Map<String, Map<Integer, Integer>> stats) {
+        List<String> widthChars = new ArrayList<>(stats.keySet());
+        Collections.sort(widthChars);
+        for (String letterItem : widthChars) {
+
+            Map<Integer, Integer> map = stats.get(letterItem);
+            List<Map.Entry<Integer, Integer>> freq = new ArrayList<>(map.entrySet());
+            Collections.sort(freq, new Comparator<Map.Entry<Integer, Integer>>() {
+                @Override
+                public int compare(Map.Entry<Integer, Integer> lhs, Map.Entry<Integer, Integer> rhs) {
+                    return lhs.getValue() < rhs.getValue() ? -1 :
+                            lhs.getValue() > rhs.getValue() ? 1 : 0;
+                }
+            });
+            double avg = 0;
+            int count = 0;
+            for (Map.Entry<Integer, Integer> item : freq) {
+                avg += item.getKey() * item.getValue();
+                count += item.getValue();
+            }
+            avg = avg / count;
+            double disp = 0;
+            for (Map.Entry<Integer, Integer> item : freq) {
+                disp += Math.pow(item.getKey() - avg, 2) * item.getValue();
+            }
+            disp = Math.sqrt(disp / (count * (count - 1)));
+
+
+            Log.d(TAG, "LETTER, " + letterItem + ", " + avg + ", " + disp + ", " + count);
+
+
+
+            for (Map.Entry<Integer, Integer> item : freq) {
+                Log.d(TAG, item.getKey() + ", " + item.getValue());
+            }
         }
     }
 

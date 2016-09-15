@@ -3,14 +3,12 @@ package com.example.npakudin.testocr.micr;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
-import android.util.Log;
 import android.util.Pair;
 
 import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
 import com.googlecode.leptonica.android.ReadFile;
 import com.googlecode.leptonica.android.Rotate;
-import com.googlecode.leptonica.android.Scale;
 import com.googlecode.leptonica.android.Skew;
 import com.googlecode.leptonica.android.WriteFile;
 import com.googlecode.tesseract.android.ResultIterator;
@@ -19,7 +17,7 @@ import com.googlecode.tesseract.android.TessBaseAPI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 
 
 public class MicrRecognizer {
@@ -71,8 +69,10 @@ public class MicrRecognizer {
 
     private static CheckData innerRecognize(Pix pix) {
 
-        int[] windowsSizes = new int[] { 32, 16, };
-        float[] thresholds = new float[] { 0.35f, 0.20f, 0.80f, 0.50f };
+//        int[] windowsSizes = new int[] { 32, 16, };
+//        float[] thresholds = new float[] { 0.35f, 0.20f, 0.80f, 0.50f };
+        int[] windowsSizes = new int[] { 32, };
+        float[] thresholds = new float[] { 0.35f, };
 
         CheckData bestCheckData = null;
         for (int windowsSize : windowsSizes) {
@@ -86,6 +86,30 @@ public class MicrRecognizer {
                 MicrInfo micrInfo = findBorders(symbols);
 
                 List<Symbol> filteredSymbols = MicrRecognizer.filterTheline(symbols, micrInfo);
+
+                Map<Integer, Integer> widthFrequencies1 = new HashMap<>();
+                Map<Integer, Integer> widthFrequenciesDigit = new HashMap<>();
+                Map<Integer, Integer> heightFrequencies = new HashMap<>();
+                for (Symbol symbol : filteredSymbols) {
+                    if (symbol.confidence > 70) {
+                        CalcUtils.putStringFrequency(globalWidth, symbol.symbol, symbol.rect.width());
+                        CalcUtils.putStringFrequency(globalHeight, symbol.symbol, symbol.rect.height());
+
+                        if (symbol.symbol.matches("[0-9]")) {
+                            CalcUtils.putFrequency(heightFrequencies, symbol.rect.width());
+                            if (symbol.symbol.equals("1")) {
+                                CalcUtils.putFrequency(widthFrequencies1, symbol.rect.width());
+                            } else {
+                                CalcUtils.putFrequency(widthFrequenciesDigit, symbol.rect.width());
+                            }
+                        }
+                    }
+                }
+                CalcUtils.handleAvgDisp(heightFrequencies, "QQQ height  ");
+                CalcUtils.handleAvgDisp(widthFrequencies1, "QQQ width 1 ");
+                CalcUtils.handleAvgDisp(widthFrequenciesDigit, "QQQ width D ");
+
+
                 CheckData checkData = MicrRecognizer.joinThinSymbols(bitmap, filteredSymbols, micrInfo);
 
                 checkData.descr = "" + windowsSize + " - " + threshold;
@@ -131,14 +155,17 @@ public class MicrRecognizer {
         return WriteFile.writeBitmap(Rotate.rotate(imag, s));
     }
 
+    public static Map<String, Map<Integer, Integer>> globalWidth = new HashMap<>();
+    public static Map<String, Map<Integer, Integer>> globalHeight = new HashMap<>();
+
     public static MicrInfo findBorders(List<Symbol> symbols) {
 
         int minWidth = 1000;
 
-        HashMap<Integer, Integer> bottomFrequencies = new HashMap<>();
-        HashMap<Integer, Integer> topFrequencies = new HashMap<>();
-        HashMap<Integer, Integer> heightFrequencies = new HashMap<>();
-        HashMap<Integer, Integer> widthFrequencies = new HashMap<>();
+        Map<Integer, Integer> bottomFrequencies = new HashMap<>();
+        Map<Integer, Integer> topFrequencies = new HashMap<>();
+        Map<Integer, Integer> widthFrequencies = new HashMap<>();
+        Map<Integer, Integer> heightFrequencies = new HashMap<>();
 
         for (Symbol rawSymbol : symbols) {
             Rect rect = rawSymbol.rect;
@@ -151,8 +178,11 @@ public class MicrRecognizer {
 
                 CalcUtils.putFrequency(bottomFrequencies, rect.bottom);
                 CalcUtils.putFrequency(topFrequencies, rect.top);
-                CalcUtils.putFrequency(heightFrequencies, rect.height());
                 CalcUtils.putFrequency(widthFrequencies, rect.width());
+                CalcUtils.putFrequency(heightFrequencies, rect.height());
+
+//                CalcUtils.putStringFrequency(globalWidth, rawSymbol.symbol, rect.width());
+//                CalcUtils.putStringFrequency(globalHeight, rawSymbol.symbol, rect.height());
             }
         }
         int topBorder = CalcUtils.findMostFrequentItem(topFrequencies);
@@ -175,7 +205,7 @@ public class MicrRecognizer {
         for (Symbol symbol : symbols) {
 
             Rect rect = symbol.rect;
-            if (micrInfo.contains(rect) && symbol.confidence > 20) {
+            if (micrInfo.contains(rect) && symbol.rect.height() < micrInfo.typicalHeight * 1.2) {
                 //if the rectangle starts before the last one ends- throw it away
                 if (rect.left > right) {
                     //otherwise remember when it ends for future comparing
@@ -208,94 +238,102 @@ public class MicrRecognizer {
 
         for (int i = 0; i < rawSymbols.size(); i++) {
             Symbol rawSymbol = rawSymbols.get(i);
-            Symbol nextSymbol = i < rawSymbols.size() - 1 ? rawSymbols.get(i + 1) : new Symbol("", 0, new Rect(bm.getWidth(), 0, bm.getWidth(), bm.getHeight()));
 
-            Symbol symbol = new Symbol();
-
-            if (oneCharRect != null) {
-                if (oneCharRect.width() + rawSymbol.rect.width() <= micrInfo.minimumCharWidth) {
-                    //in case if tle letter divided in three parts
-                    oneCharRect.right = rawSymbol.rect.right;
-                    continue;
-                }
-                //if we already have first part of unrecognized letter then
-                if (rawSymbol.rect.top < oneCharRect.top) {
-                    oneCharRect.top = rawSymbol.rect.top;
-                    //use lowest top
-                }
-                if (rawSymbol.rect.bottom > oneCharRect.bottom) {
-                    oneCharRect.bottom = rawSymbol.rect.bottom;
-                    //use biggest bottom
-                }
-                oneCharRect.right = rawSymbol.rect.right;
-                //use value for 'right' from the last rect
-
-                Rect oneCharRectWithBorders = CalcUtils.rectWithMargins(oneCharRect, 3, borderRect);
-
-                singleCharRecognition.setRectangle(oneCharRectWithBorders);
-                String s = singleCharRecognition.getUTF8Text().trim();
-                Log.w("recognized string", s);
-                if (s.length() > 0) {
-                    if (s.matches("\\d|a")) {
-                        symbol.symbol = "#";
-                    } else {
-                        symbol.symbol = s;
-                    }
-                    symbol.confidence = singleCharRecognition.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
-                } else {
-                    symbol.symbol = "%";
-                    symbol.confidence = 35.0;
-                    Log.w(LOGTAG, "bad recognition");
-                }
-                symbol.rect = oneCharRect;
-                oneCharRect = null;
-            } else {
-                if ((rawSymbol.rect.width() < micrInfo.minimumCharWidth &&
-                        !Objects.equals(rawSymbol.symbol, "1") &&
-                        nextSymbol.rect.left - rawSymbol.rect.right < micrInfo.minimumCharWidth * 2 &&
-                        nextSymbol.rect.right - rawSymbol.rect.left < micrInfo.typicalHeight * 1.5)
-                        ||
-                        (rawSymbol.rect.height() < micrInfo.typicalHeight * 0.8 &&
-                        nextSymbol.rect.left - rawSymbol.rect.right < micrInfo.minimumCharWidth * 2 &&
-                        nextSymbol.rect.right - rawSymbol.rect.left < micrInfo.typicalHeight * 1.5)) {
-                    //if we dont have first part of letter in oneCharRect and the width of the symbol says that that it is here
-                    oneCharRect = rawSymbol.rect;
-                    continue;
-                } else {
-                    //if everything is normal
-                    symbol = rawSymbol;
-
-                    if (symbol.confidence < 50 && symbol.confidence > 0) {
-                        // try to re-innerRecognize
-
-                        Rect oneCharRectWithBorders = CalcUtils.rectWithMargins(symbol.rect, 3, borderRect);
-                        singleCharRecognition.setRectangle(oneCharRectWithBorders);
-                        String s = singleCharRecognition.getUTF8Text().trim();
-
-                        if (s.length() > 0) {
-                            symbol.symbol = s;
-                            symbol.confidence = singleCharRecognition.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
-                        } else {
-                            symbol.symbol = "";
-                            symbol.confidence = 50.0;
-                            Log.w(LOGTAG, "bad recognition");
-                        }
-                    }
-                }
-            }
-
-
-            // at least 35%
-            if (symbol.confidence >= 35) {
-                builder.append(symbol.symbol);
-                symbols.add(symbol);
-                conf = conf + symbol.confidence;
-                if (symbol.confidence < minconf) {
-                    minconf = symbol.confidence;
-                }
-            }
-
+            symbols.add(rawSymbol);
+            builder.append(rawSymbol.symbol);
+            conf += rawSymbol.confidence;
         }
+
+//        for (int i = 0; i < rawSymbols.size(); i++) {
+//            Symbol rawSymbol = rawSymbols.get(i);
+//            Symbol nextSymbol = i < rawSymbols.size() - 1 ? rawSymbols.get(i + 1) : new Symbol("", 0, new Rect(bm.getWidth(), 0, bm.getWidth(), bm.getHeight()));
+//
+//            Symbol symbol = new Symbol();
+//
+//            if (oneCharRect != null) {
+//                if (oneCharRect.width() + rawSymbol.rect.width() <= micrInfo.minimumCharWidth) {
+//                    //in case if tle letter divided in three parts
+//                    oneCharRect.right = rawSymbol.rect.right;
+//                    continue;
+//                }
+//                //if we already have first part of unrecognized letter then
+//                if (rawSymbol.rect.top < oneCharRect.top) {
+//                    oneCharRect.top = rawSymbol.rect.top;
+//                    //use lowest top
+//                }
+//                if (rawSymbol.rect.bottom > oneCharRect.bottom) {
+//                    oneCharRect.bottom = rawSymbol.rect.bottom;
+//                    //use biggest bottom
+//                }
+//                oneCharRect.right = rawSymbol.rect.right;
+//                //use value for 'right' from the last rect
+//
+//                Rect oneCharRectWithBorders = CalcUtils.rectWithMargins(oneCharRect, 3, borderRect);
+//
+//                singleCharRecognition.setRectangle(oneCharRectWithBorders);
+//                String s = singleCharRecognition.getUTF8Text().trim();
+//                Log.w("recognized string", s);
+//                if (s.length() > 0) {
+//                    if (s.matches("\\d|a")) {
+//                        symbol.symbol = "#";
+//                    } else {
+//                        symbol.symbol = s;
+//                    }
+//                    symbol.confidence = singleCharRecognition.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
+//                } else {
+//                    symbol.symbol = "%";
+//                    symbol.confidence = 35.0;
+//                    Log.w(LOGTAG, "bad recognition");
+//                }
+//                symbol.rect = oneCharRect;
+//                oneCharRect = null;
+//            } else {
+//                if ((rawSymbol.rect.width() < micrInfo.minimumCharWidth &&
+//                        !Objects.equals(rawSymbol.symbol, "1") &&
+//                        nextSymbol.rect.left - rawSymbol.rect.right < micrInfo.minimumCharWidth * 2 &&
+//                        nextSymbol.rect.right - rawSymbol.rect.left < micrInfo.typicalHeight * 1.5)
+//                        ||
+//                        (rawSymbol.rect.height() < micrInfo.typicalHeight * 0.8 &&
+//                        nextSymbol.rect.left - rawSymbol.rect.right < micrInfo.minimumCharWidth * 2 &&
+//                        nextSymbol.rect.right - rawSymbol.rect.left < micrInfo.typicalHeight * 1.5)) {
+//                    //if we dont have first part of letter in oneCharRect and the width of the symbol says that that it is here
+//                    oneCharRect = rawSymbol.rect;
+//                    continue;
+//                } else {
+//                    //if everything is normal
+//                    symbol = rawSymbol;
+//
+//                    if (symbol.confidence < 50 && symbol.confidence > 0) {
+//                        // try to re-innerRecognize
+//
+//                        Rect oneCharRectWithBorders = CalcUtils.rectWithMargins(symbol.rect, 3, borderRect);
+//                        singleCharRecognition.setRectangle(oneCharRectWithBorders);
+//                        String s = singleCharRecognition.getUTF8Text().trim();
+//
+//                        if (s.length() > 0) {
+//                            symbol.symbol = s;
+//                            symbol.confidence = singleCharRecognition.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
+//                        } else {
+//                            symbol.symbol = "";
+//                            symbol.confidence = 50.0;
+//                            Log.w(LOGTAG, "bad recognition");
+//                        }
+//                    }
+//                }
+//            }
+//
+//
+//            // at least 35%
+//            if (symbol.confidence >= 35) {
+//                builder.append(symbol.symbol);
+//                symbols.add(symbol);
+//                conf = conf + symbol.confidence;
+//                if (symbol.confidence < minconf) {
+//                    minconf = symbol.confidence;
+//                }
+//            }
+//
+//        }
 
         return new CheckData(bm, builder.toString(), symbols, conf / symbols.size());
     }
