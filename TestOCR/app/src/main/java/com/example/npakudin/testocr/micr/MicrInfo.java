@@ -10,7 +10,7 @@ public class MicrInfo {
     public int top = 0;
     public int bottom = 0;
     public int minimumCharWidth = 0;
-    private int typicalWidth;
+    public int typicalWidth;
     public int typicalHeight = 0;
     public int inLineRecognized = 0;
 

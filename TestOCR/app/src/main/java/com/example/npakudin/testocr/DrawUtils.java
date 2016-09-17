@@ -43,7 +43,7 @@ public class DrawUtils {
             Paint confPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             confPaint.setColor(Color.rgb(0, 0, 255));
             confPaint.setTextSize((int) (symbol.rect.height() * scale / 3));
-            canvas.drawText(conf, symbol.rect.left,  symbol.rect.top - (int)(symbol.rect.height() * 1.1), confPaint);
+            canvas.drawText(conf, symbol.rect.left,  symbol.rect.bottom + (int)(symbol.rect.height() / 2), confPaint);
 
             Paint borderRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             borderRectPaint.setColor(Color.rgb(0, 0, 0xff));

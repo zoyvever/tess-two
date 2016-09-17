@@ -3,6 +3,7 @@ package com.example.npakudin.testocr.micr;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
+import android.util.Log;
 import android.util.Pair;
 
 import com.googlecode.leptonica.android.Binarize;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 
 public class MicrRecognizer {
@@ -82,10 +84,13 @@ public class MicrRecognizer {
                         windowsSize, threshold,
                         Binarize.SAUVOLA_DEFAULT_NUM_TILES_X, Binarize.SAUVOLA_DEFAULT_NUM_TILES_Y);
                 Bitmap bitmap = unskew(savuolaBinarized);
-                List<Symbol> symbols = rawRecognize(bitmap);
+                List<Symbol> symbols = rawRecognize(bitmap, null);
                 MicrInfo micrInfo = findBorders(symbols);
 
                 List<Symbol> filteredSymbols = MicrRecognizer.filterTheline(symbols, micrInfo);
+
+
+                Rect lineRect = new Rect(pix.getWidth(), pix.getHeight(), 0, 0);
 
                 Map<Integer, Integer> widthFrequencies1 = new HashMap<>();
                 Map<Integer, Integer> widthFrequenciesDigit = new HashMap<>();
@@ -104,15 +109,36 @@ public class MicrRecognizer {
                             }
                         }
                     }
+
+                    if (symbol.rect.left < lineRect.left) {
+                        lineRect.left = symbol.rect.left;
+                    }
+                    if (symbol.rect.top < lineRect.top) {
+                        lineRect.top = symbol.rect.top;
+                    }
+                    if (symbol.rect.right > lineRect.right) {
+                        lineRect.right = symbol.rect.right;
+                    }
+                    if (symbol.rect.bottom > lineRect.bottom) {
+                        lineRect.bottom = symbol.rect.bottom;
+                    }
                 }
                 CalcUtils.handleAvgDisp(heightFrequencies, "QQQ height  ");
                 CalcUtils.handleAvgDisp(widthFrequencies1, "QQQ width 1 ");
                 CalcUtils.handleAvgDisp(widthFrequenciesDigit, "QQQ width D ");
 
+                Rect borderRect = new Rect(0, 0, pix.getWidth(), pix.getHeight());
+                CalcUtils.rectWithMargins(lineRect, 10, borderRect);
+
+                symbols = rawRecognize(bitmap, lineRect);
+                micrInfo = findBorders(symbols);
+                filteredSymbols = MicrRecognizer.filterTheline(symbols, micrInfo);
+
 
                 CheckData checkData = MicrRecognizer.joinThinSymbols(bitmap, filteredSymbols, micrInfo);
 
-                checkData.descr = "" + windowsSize + " - " + threshold;
+                //checkData.descr = "" + windowsSize + " - " + threshold;
+                checkData.descr = "" + checkData.minConfidence + " - " + checkData.confidence;
 
                 if (checkData.isOk) {
                     return checkData;
@@ -127,9 +153,13 @@ public class MicrRecognizer {
 
 
 
-    public static List<Symbol> rawRecognize(Bitmap bm) {
+    public static List<Symbol> rawRecognize(Bitmap bm, Rect poiRect) {
+
         TessBaseAPI baseApi = createTessBaseApi();
         baseApi.setImage(bm);
+        if (poiRect != null) {
+            baseApi.setRectangle(poiRect);
+        }
         List<Symbol> symbols = new ArrayList<>();
 
         if (baseApi.getUTF8Text().trim().length() > 0) {
@@ -211,6 +241,8 @@ public class MicrRecognizer {
                     //otherwise remember when it ends for future comparing
                     right = rect.right;
                     filteredSymbols.add(symbol);
+                } else {
+                    Log.d(LOGTAG, "NEXT SYMBOL STARTS BEFORE PREV ENDS");
                 }
             }
         }
@@ -231,19 +263,140 @@ public class MicrRecognizer {
         singleCharRecognition.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
         singleCharRecognition.setImage(bm);
 
+        Symbol prevSymbol = null;
         double conf = 0;
         double minconf = 100;
         List<Symbol> symbols = new ArrayList<>();
-        Rect oneCharRect = null;
 
         for (int i = 0; i < rawSymbols.size(); i++) {
             Symbol rawSymbol = rawSymbols.get(i);
+            Symbol symbol = null;
 
-            symbols.add(rawSymbol);
-            builder.append(rawSymbol.symbol);
-            conf += rawSymbol.confidence;
+            if (prevSymbol != null) {
+
+                Rect oneCharRect = new Rect(prevSymbol.rect);
+
+                // add current symbol and re-recognize
+
+                //if we already have first part of unrecognized letter then
+                if (rawSymbol.rect.top < oneCharRect.top) {
+                    oneCharRect.top = rawSymbol.rect.top;
+                    //use lowest top
+                }
+                if (rawSymbol.rect.bottom > oneCharRect.bottom) {
+                    oneCharRect.bottom = rawSymbol.rect.bottom;
+                    //use biggest bottom
+                }
+                oneCharRect.right = rawSymbol.rect.right;
+                //use value for 'right' from the last rect
+
+
+                // anyway single char recognition doesn't work
+                symbol = new Symbol();
+                symbol.rect = oneCharRect;
+                symbol.symbol = "%";
+                symbol.confidence = 99.0;
+
+
+                //Rect oneCharRectWithBorders = CalcUtils.rectWithMargins(oneCharRect, 3, borderRect);
+
+//                singleCharRecognition.clear();
+//                singleCharRecognition.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
+//                singleCharRecognition.setImage(bm);
+//                singleCharRecognition.setRectangle(oneCharRect);
+//                String s = singleCharRecognition.getUTF8Text().trim();
+//
+//                if (s.length() > 0) {
+//                    symbol = new Symbol();
+//                    symbol.rect = oneCharRect;
+//                    symbol.symbol = s;
+//                    symbol.confidence = singleCharRecognition.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
+//
+//                    prevSymbol = null;
+//
+//                    Log.d(LOGTAG, "JOINED SYMBOL: " + symbol);
+//                } else {
+//
+//                    // quite stupid, by TessAPI cannot recognize single char
+//
+//                    Log.d(LOGTAG, "CANNON JOIN SYMBOLS: " + prevSymbol + " - " + rawSymbol);
+//
+////                    // add prev symbol as is
+////                    symbol = prevSymbol;
+////                    symbols.add(symbol);
+////                    builder.append(symbol.symbol);
+////                    conf += symbol.confidence;
+////                    if (symbol.confidence < minconf) {
+////                        minconf = symbol.confidence;
+////                    }
+////
+////                    // add cur symbol as is
+////                    symbol = rawSymbol;
+//                }
+
+
+
+
+            } else {
+                // check, that symbol is suspicious
+                boolean isSuspicious = false;
+                if (rawSymbol.confidence < 60) {
+                    isSuspicious = true;
+                }
+                if (rawSymbol.confidence < 80) {
+//                    if (rawSymbol.rect.height() < micrInfo.typicalHeight * 0.8) {
+//                        isSuspicious = true;
+//                    }
+                    if (rawSymbol.rect.width() < micrInfo.typicalWidth * 0.8) {
+                        if (rawSymbol.symbol.equals("1")) {
+                            if (rawSymbol.rect.height() < micrInfo.typicalHeight * 0.8) {
+                                isSuspicious = true;
+                            }
+                        } else {
+                            isSuspicious = true;
+                        }
+                    }
+                }
+                if (isSuspicious) {
+                    prevSymbol = rawSymbol;
+                } else {
+
+                    // add to res
+                    symbol = rawSymbol;
+
+                }
+            }
+
+
+            if (symbol != null && symbol.confidence >= 60) {
+
+                boolean isAddSpace = false;
+                if (symbols.size() > 0) {
+                    double prevRight = symbols.get(symbols.size() - 1).rect.right;
+                    if (symbol.rect.left - prevRight > micrInfo.typicalWidth * 1.5) {
+
+                        Log.d(LOGTAG, "space: " + (symbol.rect.left - prevRight) + " - " + (micrInfo.typicalWidth * 1.5));
+
+                        isAddSpace = true;
+                    }
+                }
+
+                if (isAddSpace) {
+                    builder.append(" ");
+                }
+
+
+                symbols.add(symbol);
+                builder.append(symbol.symbol);
+                conf += symbol.confidence;
+
+                if (symbol.confidence < minconf) {
+                    minconf = symbol.confidence;
+                }
+            }
         }
 
+//        Rect oneCharRect = null;
 //        for (int i = 0; i < rawSymbols.size(); i++) {
 //            Symbol rawSymbol = rawSymbols.get(i);
 //            Symbol nextSymbol = i < rawSymbols.size() - 1 ? rawSymbols.get(i + 1) : new Symbol("", 0, new Rect(bm.getWidth(), 0, bm.getWidth(), bm.getHeight()));
@@ -251,11 +404,11 @@ public class MicrRecognizer {
 //            Symbol symbol = new Symbol();
 //
 //            if (oneCharRect != null) {
-//                if (oneCharRect.width() + rawSymbol.rect.width() <= micrInfo.minimumCharWidth) {
-//                    //in case if tle letter divided in three parts
-//                    oneCharRect.right = rawSymbol.rect.right;
-//                    continue;
-//                }
+////                if (oneCharRect.width() + rawSymbol.rect.width() <= micrInfo.minimumCharWidth) {
+////                    //in case if tle letter divided in three parts
+////                    oneCharRect.right = rawSymbol.rect.right;
+////                    continue;
+////                }
 //                //if we already have first part of unrecognized letter then
 //                if (rawSymbol.rect.top < oneCharRect.top) {
 //                    oneCharRect.top = rawSymbol.rect.top;
@@ -272,7 +425,7 @@ public class MicrRecognizer {
 //
 //                singleCharRecognition.setRectangle(oneCharRectWithBorders);
 //                String s = singleCharRecognition.getUTF8Text().trim();
-//                Log.w("recognized string", s);
+//                Log.w(LOGTAG, "recognized string: " + s);
 //                if (s.length() > 0) {
 //                    if (s.matches("\\d|a")) {
 //                        symbol.symbol = "#";
@@ -282,7 +435,7 @@ public class MicrRecognizer {
 //                    symbol.confidence = singleCharRecognition.getResultIterator().getChoicesAndConfidence(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL).get(0).second;
 //                } else {
 //                    symbol.symbol = "%";
-//                    symbol.confidence = 35.0;
+//                    symbol.confidence = 99.0;
 //                    Log.w(LOGTAG, "bad recognition");
 //                }
 //                symbol.rect = oneCharRect;
@@ -291,7 +444,8 @@ public class MicrRecognizer {
 //                if ((rawSymbol.rect.width() < micrInfo.minimumCharWidth &&
 //                        !Objects.equals(rawSymbol.symbol, "1") &&
 //                        nextSymbol.rect.left - rawSymbol.rect.right < micrInfo.minimumCharWidth * 2 &&
-//                        nextSymbol.rect.right - rawSymbol.rect.left < micrInfo.typicalHeight * 1.5)
+//                        nextSymbol.rect.right - rawSymbol.rect.left < micrInfo.typicalHeight * 1.5
+//                )
 //                        ||
 //                        (rawSymbol.rect.height() < micrInfo.typicalHeight * 0.8 &&
 //                        nextSymbol.rect.left - rawSymbol.rect.right < micrInfo.minimumCharWidth * 2 &&
@@ -323,8 +477,24 @@ public class MicrRecognizer {
 //            }
 //
 //
-//            // at least 35%
-//            if (symbol.confidence >= 35) {
+//            // at least 60%
+//            if (symbol.confidence >= 60) {
+//
+//                boolean isAddSpace = false;
+//                if (symbols.size() > 0) {
+//                    double prevRight = symbols.get(symbols.size() - 1).rect.right;
+//                    if (symbol.rect.left - prevRight > micrInfo.typicalWidth * 1.5) {
+//
+//                        Log.d(LOGTAG, "space: " + (symbol.rect.left - prevRight) + " - " + (micrInfo.typicalWidth * 1.5));
+//
+//                        isAddSpace = true;
+//                    }
+//                }
+//
+//                if (isAddSpace) {
+//                    builder.append(" ");
+//                }
+//
 //                builder.append(symbol.symbol);
 //                symbols.add(symbol);
 //                conf = conf + symbol.confidence;
@@ -335,7 +505,9 @@ public class MicrRecognizer {
 //
 //        }
 
-        return new CheckData(bm, builder.toString(), symbols, conf / symbols.size());
+        CheckData checkData = new CheckData(bm, builder.toString(), symbols, conf / symbols.size());
+        checkData.minConfidence = minconf;
+        return checkData;
     }
 
 

@@ -70,10 +70,11 @@ public class MainActivity extends AppCompatActivity {
 
                 holder.imageView().setImageBitmap(checkData.res);
 
-                boolean isEq = checkData.isOk == (checkData.distance == 0);
+                boolean isBad = checkData.isOk && (checkData.distance != 0);
 
-                holder.textView().setText((isEq ? "" : "BAD ") + checkData.distance + " - " + checkData.filename + " - " + checkData.descr);
-                holder.textView().setTextColor(isEq ? Color.rgb(0,0,0) : Color.rgb(0xff,0,0));
+                holder.textView().setText((isBad ? "BAD " : "") + checkData.distance + " - " + checkData.filename + " - " + checkData.descr);
+                holder.textView2().setText(checkData.wholeText);
+                holder.textView().setTextColor(isBad ? Color.rgb(0xff,0,0) : Color.rgb(0,0,0));
 
                 return convertView;
             }
@@ -86,6 +87,7 @@ public class MainActivity extends AppCompatActivity {
         private View row;
         private ImageView imageView;
         private TextView textView;
+        private TextView textView2;
 
         public ViewHolder(View row) {
             this.row = row;
@@ -105,6 +107,12 @@ public class MainActivity extends AppCompatActivity {
             return this.textView;
         }
 
+        public TextView textView2() {
+            if (this.textView2 == null) {
+                this.textView2 = (TextView) row.findViewById(R.id.textView2);
+            }
+            return this.textView2;
+        }
     }
 
     //private boolean isRecognized = false;
@@ -151,8 +159,10 @@ public class MainActivity extends AppCompatActivity {
                 CheckData checkData = MicrRecognizer.recognize(src);
                 checkData.res = DrawUtils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText);
 
+                String wholeText = checkData.wholeText.replace(" ", "").replace("%", "a");
+
                 checkData.realText = file.substring(0, file.length() - 5);
-                checkData.distance = levenshteinDistance(checkData.wholeText, checkData.realText);
+                checkData.distance = levenshteinDistance(wholeText, checkData.realText);
 
                 totalSymbols += checkData.wholeText.length();
                 symbolErrors += checkData.distance;
@@ -163,8 +173,9 @@ public class MainActivity extends AppCompatActivity {
 
                 //checkData.res = null;
 
+                Log.d(TAG, "min conf: " + checkData.minConfidence + "; avg conf: " + checkData.confidence);
                 if (checkData.distance == 0) {
-                    checkData.res = null;
+                    //checkData.res = null;
                 } else {
                     Log.d(TAG, "file: " + file + "; src           : " + checkData.realText);
                     Log.d(TAG, "file: " + file + "; BAD recognized: " + checkData.wholeText);
