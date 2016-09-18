@@ -38,12 +38,6 @@ public class CheckData {
         this.confidence=confidence;
 
         parseAndCheck(wholeText);
-
-        //this.isOk = confidence >= 60 && routingNumber != null && accountNumber != null;
-
-//        routingNumber = findPattern("a\\d{9}(?!c|\\d)|\\d{9}a", "a");
-//        accountNumber = findPattern("\\d{1,15}c", "c");
-//        checkNumber = findPattern("\\d{1,10}", "");
     }
 
     public void parseAndCheck(String str) {
@@ -52,6 +46,10 @@ public class CheckData {
 
         // TODO: check routing checksum
         char[] d = routingNumber.toCharArray();
+        for (int i=0; i<d.length; i++) {
+            int x = (d[i] - (int)'0');
+            d[i] = (char)x;
+        }
         if (d.length != 9) {
             routingNumber = null;
             errorMessage += ", routing number length is invalid";
@@ -59,13 +57,14 @@ public class CheckData {
             if ((3*(d[0]+d[3]+d[6])+7*(d[1]+d[4]+d[7])+(d[2]+d[5]+d[8])) % 10 == 0) {
                 // ok
             } else {
-//                routingNumber = null;
-//                errorMessage += ", routing number checksum is invalid";
+                routingNumber = null;
+                errorMessage += ", routing number checksum is invalid";
             }
         }
 
 
         this.isOk = routingNumber != null && accountNumber != null && checkNumber != null;
+        errorMessage = errorMessage.substring(2);
     }
 
     private void parseRoutingNumber(String src) {
@@ -76,20 +75,6 @@ public class CheckData {
         // 3. routing: [a](\d{9})[a%]   |   [a%](\d{9})[a%]
         // 4. if routing gives 2 and  both with % only - use with less leading zeros
         // 5. check: ^[abcd% ]*(\d+)[abcd% ]*$
-
-
-        Pattern checkEndingPattern = Pattern.compile("([ c%])(\\d{0,5})$"); // get $2
-        Pattern accountPattern = Pattern.compile("([acd% ])([0-9d%]{8,13})[c%]?$");
-
-
-        Pattern routingExactPattern = Pattern.compile("(a\\d{9}a)|(%\\d{9}a)|(a\\d{9}%)");
-        Pattern routingFuzzyPattern = Pattern.compile("%\\d{9}%");
-
-        Pattern accountExactPattern = Pattern.compile("([acd ])([0-9d%]{8,13})[c%]?$");
-        Pattern accountFuzzyPattern = Pattern.compile("([acd% ])([0-9d%]{8,13})[c%]?$");
-
-        Pattern accountComplicatedExactPattern = Pattern.compile("(\\b|d)[0-9d]{6,12}c");
-        Pattern accountComplicatedFuzzyPattern = Pattern.compile("(\\b|d)[0-9d]{6,12}%");
 
 
         Pair<String, String> pair;
