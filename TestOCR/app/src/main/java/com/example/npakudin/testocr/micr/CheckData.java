@@ -64,7 +64,9 @@ public class CheckData {
 
 
         this.isOk = routingNumber != null && accountNumber != null && checkNumber != null;
-        errorMessage = errorMessage.substring(2);
+        if (errorMessage != null && errorMessage.length() > 2) {
+            errorMessage = errorMessage.substring(2);
+        }
     }
 
     private void parseRoutingNumber(String src) {
