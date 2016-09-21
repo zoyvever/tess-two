@@ -76,24 +76,6 @@ public class MicrRecognizer {
 ////        return res;
 //    }
 
-    private static Bitmap cropBitmap(Bitmap bm, CheckData checkData) {
-        // crop image
-        int top = 1000;
-        int bottom = 0;
-        for (Symbol symbol : checkData.symbols) {
-            if (top > symbol.rect.top) {
-                top = symbol.rect.top;
-            }
-            if (bottom < symbol.rect.bottom) {
-                bottom = symbol.rect.bottom;
-            }
-        }
-        //in case of skew take a 2 sizes of the line which allows 6 degrees skew
-        int height=(bottom-top);
-        int y = Math.max(0, top-height);
-        return Bitmap.createBitmap(bm, 1, y, bm.getWidth() - 1, Math.min(bm.getHeight() - y, 2*height));
-    }
-
     private static CheckData innerRecognize(Pix pix, String filename) {
 
         String realText = filename.substring(0, filename.length() - 5);
@@ -168,29 +150,6 @@ public class MicrRecognizer {
                     }
 
                     CheckData checkData = MicrRecognizer.joinThinSymbols(bitmap, filteredSymbols, micrInfo);
-                    checkData.realText = realText;
-
-                    checkData.descr = "" + windowSize + " - " + threshold;
-                    checkData.descr += " / " + checkData.minConfidence + " - " + checkData.confidence;
-
-                    Log.w(LOGTAG, "Saving pic for " + filename);
-
-                    int distance = Utils.levenshteinDistance(checkData.wholeText, realText);
-                    checkData.distance = distance;
-                    Bitmap bmRes = Utils.drawRecText(checkData.res, scale, checkData.symbols, realText, distance);
-                    Utils.saveBitmap(bmRes, String.format("%s/%s", windowSize, threshold), filename + ".jpg");
-                    //Utils.saveBitmap(bmRes, String.format("%s_%s_%s.jpg", filename, windowSize, threshold));
-
-                    RecResult recResult = new RecResult();
-                    recResult.filename = filename;
-                    recResult.minConfidence = checkData.minConfidence;
-                    recResult.avgConfidence = checkData.confidence;
-                    recResult.distance = checkData.distance;
-                    recResult.windowSize = windowSize;
-                    recResult.threshold = threshold;
-
-                    recResults.add(recResult);
-
 
                     if (checkData.isOk) {
                         //return checkData;

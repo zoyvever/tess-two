@@ -65,13 +65,13 @@ public class MainActivity extends Activity {
 
                 CheckData checkData = entities.get(position);
 
-                holder.imageView().setImageBitmap(checkData.res);
-
-                boolean isBad = checkData.isOk && (checkData.distance != 0);
-
-                holder.textView().setText((isBad ? "BAD " : "") + checkData.distance + " - " + checkData.filename + " - " + checkData.descr);
-                holder.textView2().setText(checkData.wholeText);
-                holder.textView().setTextColor(isBad ? Color.rgb(0xff,0,0) : Color.rgb(0,0,0));
+//                holder.imageView().setImageBitmap(checkData.res);
+//
+//                boolean isBad = checkData.isOk && (checkData.distance != 0);
+//
+//                holder.textView().setText((isBad ? "BAD " : "") + checkData.distance + " - " + checkData.filename + " - " + checkData.descr);
+//                holder.textView2().setText(checkData.wholeText);
+//                holder.textView().setTextColor(isBad ? Color.rgb(0xff,0,0) : Color.rgb(0,0,0));
 
                 return convertView;
             }
@@ -155,34 +155,34 @@ public class MainActivity extends Activity {
 
                 Log.d(TAG, "file: " + file + "; recognizing...");
                 CheckData checkData = MicrRecognizer.recognize(src, file);
-                if (checkData!= null && checkData.res != null) {
+                if (checkData!= null) {
 
                     String wholeText = checkData.wholeText;//.replace(" ", "").replace("%", "a");
 
-                    checkData.realText = file.substring(0, file.length() - 5);
-                    checkData.distance = Utils.levenshteinDistance(wholeText, checkData.realText);
-
-                    checkData.res = Utils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText, checkData.distance);
-
-
-                    totalSymbols += checkData.wholeText.length();
-                    symbolErrors += checkData.distance;
-                    if (checkData.distance == 0) {
-                        recognizedChecks++;
-                    }
-                    //saveBitmap(checkData.res, file.substring(0, file.length() - 4));
-
-                    //checkData.res = null;
-
-                    Log.d(TAG, "min conf: " + checkData.minConfidence + "; avg conf: " + checkData.confidence);
-                    if (checkData.distance == 0) {
-                        //checkData.res = null;
-                    } else {
-                        Log.d(TAG, "file: " + file + "; src           : " + checkData.realText);
-                        Log.d(TAG, "file: " + file + "; BAD recognized: " + checkData.wholeText);
-                    }
-
-                    checkData.filename = file;
+//                    checkData.realText = file.substring(0, file.length() - 5);
+//                    checkData.distance = Utils.levenshteinDistance(wholeText, checkData.realText);
+//
+//                    checkData.res = Utils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText, checkData.distance);
+//
+//
+//                    totalSymbols += checkData.wholeText.length();
+//                    symbolErrors += checkData.distance;
+//                    if (checkData.distance == 0) {
+//                        recognizedChecks++;
+//                    }
+//                    //saveBitmap(checkData.res, file.substring(0, file.length() - 4));
+//
+//                    //checkData.res = null;
+//
+//                    Log.d(TAG, "min conf: " + checkData.minConfidence + "; avg conf: " + checkData.confidence);
+//                    if (checkData.distance == 0) {
+//                        //checkData.res = null;
+//                    } else {
+//                        Log.d(TAG, "file: " + file + "; src           : " + checkData.realText);
+//                        Log.d(TAG, "file: " + file + "; BAD recognized: " + checkData.wholeText);
+//                    }
+//
+//                    checkData.filename = file;
                     entities.add(checkData);
                 }
             }
@@ -208,21 +208,21 @@ public class MainActivity extends Activity {
 
 
 
-            for (CheckData item : entities) {
-                if (item.distance == 0) {
-                    continue;
-                }
-
-                String recognizedFields = String.format(" routing: %s %n account: %s %n check number: %s %n ",
-                        item.routingNumber, item.accountNumber, item.checkNumber);
-                Log.d(TAG, "realText:   " + item.realText);
-                Log.d(TAG, "recognized: " + item.wholeText);
-                Log.d(TAG, "levenshteinDistance: " + item.distance);
-                Log.d(TAG, recognizedFields);
-//                Log.d(TAG, "routing: "+item.routingNumber);
-//                Log.d(TAG, "account: "+item.accountNumber);
-//                Log.d(TAG, "check number: "+item.checkNumber);
-            }
+//            for (CheckData item : entities) {
+//                if (item.distance == 0) {
+//                    continue;
+//                }
+//
+//                String recognizedFields = String.format(" routing: %s %n account: %s %n check number: %s %n ",
+//                        item.routingNumber, item.accountNumber, item.checkNumber);
+//                Log.d(TAG, "realText:   " + item.realText);
+//                Log.d(TAG, "recognized: " + item.wholeText);
+//                Log.d(TAG, "levenshteinDistance: " + item.distance);
+//                Log.d(TAG, recognizedFields);
+////                Log.d(TAG, "routing: "+item.routingNumber);
+////                Log.d(TAG, "account: "+item.accountNumber);
+////                Log.d(TAG, "check number: "+item.checkNumber);
+//            }
 
 
             Log.d(TAG, "RecResults begin");
