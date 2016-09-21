@@ -141,15 +141,4 @@ public class Utils {
         return cost[len0 - 1];
     }
 
-    public static Bitmap cropBitmap(Bitmap bm, Rect rect) {
-
-        return Bitmap.createBitmap(bm, rect.left, rect.top, rect.width(), rect.height());
-    }
-
-    public static Bitmap cropBitmap(Bitmap bm, int top, int bottom) {
-
-        return Bitmap.createBitmap(bm, 0, top, bm.getWidth(), bottom - top);
-    }
-
-
 }

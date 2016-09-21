@@ -6,8 +6,6 @@ import android.graphics.Rect;
 import android.util.Log;
 import android.util.Pair;
 
-import com.example.npakudin.testocr.Utils;
-import com.example.npakudin.testocr.micr.CalcUtils;
 import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
 import com.googlecode.leptonica.android.ReadFile;
@@ -76,7 +74,7 @@ public class MicrRecognizer {
 
                 if (!isCropped) {
                     // crop image
-                    bitmap = Utils.cropBitmap(unskewed, Math.max(0, micrInfo.top - 10), Math.min(unskewed.getHeight(), micrInfo.bottom + 10));
+                    bitmap = RecognitionUtils.cropBitmap(unskewed, Math.max(0, micrInfo.top - 10), Math.min(unskewed.getHeight(), micrInfo.bottom + 10));
                     isCropped = true;
                 }
             } catch (Exception e) {
@@ -135,20 +133,20 @@ public class MicrRecognizer {
                 }
 
 
-                CalcUtils.putFrequency(bottomFrequencies, rect.bottom);
-                CalcUtils.putFrequency(topFrequencies, rect.top);
-                CalcUtils.putFrequency(widthFrequencies, rect.width());
-                CalcUtils.putFrequency(heightFrequencies, rect.height());
+                RecognitionUtils.putFrequency(bottomFrequencies, rect.bottom);
+                RecognitionUtils.putFrequency(topFrequencies, rect.top);
+                RecognitionUtils.putFrequency(widthFrequencies, rect.width());
+                RecognitionUtils.putFrequency(heightFrequencies, rect.height());
 
-//                CalcUtils.putStringFrequency(globalWidth, rawSymbol.symbol, rect.width());
-//                CalcUtils.putStringFrequency(globalHeight, rawSymbol.symbol, rect.height());
+//                RecognitionUtils.putStringFrequency(globalWidth, rawSymbol.symbol, rect.width());
+//                RecognitionUtils.putStringFrequency(globalHeight, rawSymbol.symbol, rect.height());
             }
         }
-        int topBorder = CalcUtils.findMostFrequentItem(topFrequencies);
-        int bottomBorder = CalcUtils.findMostFrequentItem(bottomFrequencies);
-        int typicalWidth = CalcUtils.findMostFrequentItem(widthFrequencies);
-        int typicalHeight = CalcUtils.findMostFrequentItem(heightFrequencies);
-        int inLineRecognized = CalcUtils.findTheLine(topFrequencies, topBorder, 5); // border = 5
+        int topBorder = RecognitionUtils.findMostFrequentItem(topFrequencies);
+        int bottomBorder = RecognitionUtils.findMostFrequentItem(bottomFrequencies);
+        int typicalWidth = RecognitionUtils.findMostFrequentItem(widthFrequencies);
+        int typicalHeight = RecognitionUtils.findMostFrequentItem(heightFrequencies);
+        int inLineRecognized = RecognitionUtils.findTheLine(topFrequencies, topBorder, 5); // border = 5
         int tolerance = (int) (0.6 * (topBorder - bottomBorder));
         return new MicrInfo(topBorder + tolerance, bottomBorder - tolerance, minWidth, typicalWidth, typicalHeight, inLineRecognized);
     }

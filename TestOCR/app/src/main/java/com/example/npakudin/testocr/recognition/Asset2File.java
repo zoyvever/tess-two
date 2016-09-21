@@ -14,7 +14,7 @@ import java.io.InputStream;
 /**
  * Created by npakudin on 10/09/16
  */
-public class Asset2File {
+class Asset2File {
 
     private static final String LOGTAG = "Asset2File";
 
