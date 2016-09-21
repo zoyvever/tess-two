@@ -17,10 +17,10 @@ import java.util.Locale;
 /**
  * Created by npakudin on 10/09/16
  */
-public class DrawUtils {
+public class Utils {
 
 
-    private static final String TAG = "DrawUtils";
+    private static final String TAG = "Utils";
 
     public static Bitmap drawRecText(Bitmap bm, Float scale, List<Symbol> symbols, String realText, int distance) {
         Canvas canvas = new Canvas(bm);

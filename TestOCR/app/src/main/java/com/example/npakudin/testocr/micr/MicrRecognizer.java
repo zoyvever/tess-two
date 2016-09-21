@@ -6,7 +6,7 @@ import android.graphics.Rect;
 import android.util.Log;
 import android.util.Pair;
 
-import com.example.npakudin.testocr.DrawUtils;
+import com.example.npakudin.testocr.Utils;
 import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
 import com.googlecode.leptonica.android.ReadFile;
@@ -19,11 +19,29 @@ import com.googlecode.tesseract.android.TessBaseAPI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 
 
 public class MicrRecognizer {
+
+    public static class RecResult {
+
+        public int windowSize;
+        public float threshold;
+        public String filename;
+        public int distance;
+        public double avgConfidence;
+        public double minConfidence;
+
+        @Override
+        public String toString() {
+            return String.format(Locale.ENGLISH, "%d\t%f\t%f\t%f\t%d\t%s", windowSize, threshold, minConfidence, avgConfidence, distance, filename);
+        }
+    }
+
+    public static List<RecResult> recResults = new ArrayList<>();
+
 
     private static final String LOGTAG = "TextRecognizer";
     public static Float scale;
@@ -157,10 +175,22 @@ public class MicrRecognizer {
 
                     Log.w(LOGTAG, "Saving pic for " + filename);
 
-                    int distance = DrawUtils.levenshteinDistance(checkData.wholeText, realText);
-                    Bitmap bmRes = DrawUtils.drawRecText(checkData.res, scale, checkData.symbols, realText, distance);
-                    DrawUtils.saveBitmap(bmRes, String.format("%s/%s", windowSize, threshold), filename + ".jpg");
-                    //DrawUtils.saveBitmap(bmRes, String.format("%s_%s_%s.jpg", filename, windowSize, threshold));
+                    int distance = Utils.levenshteinDistance(checkData.wholeText, realText);
+                    checkData.distance = distance;
+                    Bitmap bmRes = Utils.drawRecText(checkData.res, scale, checkData.symbols, realText, distance);
+                    Utils.saveBitmap(bmRes, String.format("%s/%s", windowSize, threshold), filename + ".jpg");
+                    //Utils.saveBitmap(bmRes, String.format("%s_%s_%s.jpg", filename, windowSize, threshold));
+
+                    RecResult recResult = new RecResult();
+                    recResult.filename = filename;
+                    recResult.minConfidence = checkData.minConfidence;
+                    recResult.avgConfidence = checkData.confidence;
+                    recResult.distance = checkData.distance;
+                    recResult.windowSize = windowSize;
+                    recResult.threshold = threshold;
+
+                    recResults.add(recResult);
+
 
                     if (checkData.isOk) {
                         //return checkData;
@@ -168,6 +198,8 @@ public class MicrRecognizer {
                     if (bestCheckData == null || bestCheckData.confidence < checkData.confidence) {
                         bestCheckData = checkData;
                     }
+
+
                 } catch (Exception e) {
                     Log.e(LOGTAG, "Cannot recognize pic " + String.format("%s_%s_%s.jpg", filename, windowSize, threshold), e);
                 }

@@ -9,7 +9,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,8 +20,6 @@ import android.widget.TextView;
 import com.example.npakudin.testocr.micr.CheckData;
 import com.example.npakudin.testocr.micr.MicrRecognizer;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -163,9 +160,9 @@ public class MainActivity extends Activity {
                     String wholeText = checkData.wholeText;//.replace(" ", "").replace("%", "a");
 
                     checkData.realText = file.substring(0, file.length() - 5);
-                    checkData.distance = DrawUtils.levenshteinDistance(wholeText, checkData.realText);
+                    checkData.distance = Utils.levenshteinDistance(wholeText, checkData.realText);
 
-                    checkData.res = DrawUtils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText, checkData.distance);
+                    checkData.res = Utils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText, checkData.distance);
 
 
                     totalSymbols += checkData.wholeText.length();
@@ -227,9 +224,18 @@ public class MainActivity extends Activity {
 //                Log.d(TAG, "check number: "+item.checkNumber);
             }
 
+
+            Log.d(TAG, "RecResults begin");
+            for (MicrRecognizer.RecResult item : MicrRecognizer.recResults) {
+                Log.d(TAG, item.toString());
+            }
+            Log.d(TAG, "RecResults end");
+
         } catch (IOException e) {
             Log.e(TAG, e.toString());
         }
+
+
     }
 
     private void handleStats(Map<String, Map<Integer, Integer>> stats) {
