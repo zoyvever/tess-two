@@ -51,8 +51,7 @@ public class CheckDataTest {
 
     private void checkCheck(String src, String parsed) {
 
-        CheckData checkData = new CheckData();
-        checkData.parseAndCheck(src);
+        CheckData checkData = new CheckData(src, 0);
         Assert.assertEquals("Replacement: " + src, parsed, String.format("%s %s %s", checkData.routingNumber, checkData.accountNumber,
                 checkData.checkNumber));
         Assert.assertEquals(true, checkData.isOk);

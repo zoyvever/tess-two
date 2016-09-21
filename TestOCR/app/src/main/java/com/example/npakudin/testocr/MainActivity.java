@@ -69,7 +69,7 @@ public class MainActivity extends Activity {
 //                boolean isBad = checkData.isOk && (checkData.distance != 0);
 //
 //                holder.textView().setText((isBad ? "BAD " : "") + checkData.distance + " - " + checkData.filename + " - " + checkData.descr);
-//                holder.textView2().setText(checkData.wholeText);
+//                holder.textView2().setText(checkData.rawText);
 //                holder.textView().setTextColor(isBad ? Color.rgb(0xff,0,0) : Color.rgb(0,0,0));
 
                 return convertView;
@@ -152,35 +152,22 @@ public class MainActivity extends Activity {
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
                 Log.d(TAG, "file: " + file + "; recognizing...");
-                CheckData checkData = MicrRecognizer.recognize(src, file);
+                CheckData checkData = MicrRecognizer.recognize(src);
                 if (checkData!= null) {
 
-                    String wholeText = checkData.wholeText;//.replace(" ", "").replace("%", "a");
+                    String rawText = checkData.rawText;//.replace(" ", "").replace("%", "a");
 
-//                    checkData.realText = file.substring(0, file.length() - 5);
-//                    checkData.distance = Utils.levenshteinDistance(wholeText, checkData.realText);
-//
-//                    checkData.res = Utils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText, checkData.distance);
-//
-//
-//                    totalSymbols += checkData.wholeText.length();
-//                    symbolErrors += checkData.distance;
-//                    if (checkData.distance == 0) {
-//                        recognizedChecks++;
-//                    }
-//                    //saveBitmap(checkData.res, file.substring(0, file.length() - 4));
-//
-//                    //checkData.res = null;
-//
-//                    Log.d(TAG, "min conf: " + checkData.minConfidence + "; avg conf: " + checkData.confidence);
-//                    if (checkData.distance == 0) {
-//                        //checkData.res = null;
-//                    } else {
-//                        Log.d(TAG, "file: " + file + "; src           : " + checkData.realText);
-//                        Log.d(TAG, "file: " + file + "; BAD recognized: " + checkData.wholeText);
-//                    }
-//
-//                    checkData.filename = file;
+                    String realText = file.substring(0, file.length() - 5);
+                    int distance = Utils.levenshteinDistance(rawText, realText);
+
+                    totalSymbols += checkData.rawText.length();
+                    symbolErrors += distance;
+                    if (distance == 0) {
+                        recognizedChecks++;
+                    }
+
+
+                    //checkData.res = Utils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText, checkData.distance);
                     entities.add(checkData);
                 }
             }
@@ -190,82 +177,10 @@ public class MainActivity extends Activity {
             Log.d("MainActivity", info);
 
 
-//            Log.d(TAG, "Char width");
-//            handleStats(MicrRecognizer.globalWidth);
-//            Log.d(TAG, "Char height");
-//            handleStats(MicrRecognizer.globalHeight);
-
-//            for (Map.Entry<String, Map<Integer, Integer>> letterItem : MicrRecognizer.globalHeight.entrySet()) {
-//                Map<Integer, Integer> map = letterItem.getValue();
-//                Log.d(TAG, letterItem.getKey());
-//                for (Integer item : map.keySet()) {
-//                    Log.d(TAG, item + ", " + map.get(item));
-//                }
-//            }
-
-
-
-
-//            for (CheckData item : entities) {
-//                if (item.distance == 0) {
-//                    continue;
-//                }
-//
-//                String recognizedFields = String.format(" routing: %s %n account: %s %n check number: %s %n ",
-//                        item.routingNumber, item.accountNumber, item.checkNumber);
-//                Log.d(TAG, "realText:   " + item.realText);
-//                Log.d(TAG, "recognized: " + item.wholeText);
-//                Log.d(TAG, "levenshteinDistance: " + item.distance);
-//                Log.d(TAG, recognizedFields);
-////                Log.d(TAG, "routing: "+item.routingNumber);
-////                Log.d(TAG, "account: "+item.accountNumber);
-////                Log.d(TAG, "check number: "+item.checkNumber);
-//            }
-
 
 
         } catch (IOException e) {
             Log.e(TAG, e.toString());
-        }
-
-
-    }
-
-    private void handleStats(Map<String, Map<Integer, Integer>> stats) {
-        List<String> widthChars = new ArrayList<>(stats.keySet());
-        Collections.sort(widthChars);
-        for (String letterItem : widthChars) {
-
-            Map<Integer, Integer> map = stats.get(letterItem);
-            List<Map.Entry<Integer, Integer>> freq = new ArrayList<>(map.entrySet());
-            Collections.sort(freq, new Comparator<Map.Entry<Integer, Integer>>() {
-                @Override
-                public int compare(Map.Entry<Integer, Integer> lhs, Map.Entry<Integer, Integer> rhs) {
-                    return lhs.getValue() < rhs.getValue() ? -1 :
-                            lhs.getValue() > rhs.getValue() ? 1 : 0;
-                }
-            });
-            double avg = 0;
-            int count = 0;
-            for (Map.Entry<Integer, Integer> item : freq) {
-                avg += item.getKey() * item.getValue();
-                count += item.getValue();
-            }
-            avg = avg / count;
-            double disp = 0;
-            for (Map.Entry<Integer, Integer> item : freq) {
-                disp += Math.pow(item.getKey() - avg, 2) * item.getValue();
-            }
-            disp = Math.sqrt(disp / (count * (count - 1)));
-
-
-            Log.d(TAG, "LETTER, " + letterItem + ", " + avg + ", " + disp + ", " + count);
-
-
-
-            for (Map.Entry<Integer, Integer> item : freq) {
-                Log.d(TAG, item.getKey() + ", " + item.getValue());
-            }
         }
     }
 }

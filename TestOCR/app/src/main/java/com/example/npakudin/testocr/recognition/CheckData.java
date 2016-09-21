@@ -1,7 +1,5 @@
 package com.example.npakudin.testocr.recognition;
 
-import android.graphics.Bitmap;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.MatchResult;
@@ -10,11 +8,13 @@ import java.util.regex.Pattern;
 
 public class CheckData {
 
-    public boolean isOk;
-    public String wholeText = "";
     public String routingNumber = "";
     public String accountNumber = "";
     public String checkNumber = "";
+
+    public boolean isOk;
+    public String rawText = "";
+
     public double minConfidence = 0;
     public double confidence = 0;
     public String errorMessage;
@@ -23,18 +23,26 @@ public class CheckData {
 
     }
 
-    public CheckData(Bitmap res, String wholeText, List<Symbol> symbols, double confidence) {
-        this.wholeText = wholeText;
+    public CheckData(String rawText, double confidence) {
+        this.rawText = rawText;
         this.confidence=confidence;
 
-        parseAndCheck(wholeText);
+        parseAndCheck(rawText);
     }
 
     public void parseAndCheck(String str) {
 
-        parseRoutingNumber(str);
+        parseCheck(str);
+        checkRoutingNumberChecksum();
 
-        // TODO: check routing checksum
+        this.isOk = routingNumber != null && accountNumber != null && checkNumber != null;
+        if (errorMessage != null && errorMessage.length() > 2) {
+            errorMessage = errorMessage.substring(2);
+        }
+    }
+
+    private void checkRoutingNumberChecksum() {
+
         char[] d = routingNumber.toCharArray();
         for (int i=0; i<d.length; i++) {
             int x = (d[i] - (int)'0');
@@ -51,22 +59,15 @@ public class CheckData {
                 errorMessage += ", routing number checksum is invalid";
             }
         }
-
-
-        this.isOk = routingNumber != null && accountNumber != null && checkNumber != null;
-        if (errorMessage != null && errorMessage.length() > 2) {
-            errorMessage = errorMessage.substring(2);
-        }
     }
 
-    private void parseRoutingNumber(String src) {
+    private void parseCheck(String src) {
 
         // main algorithm:
         // 1. check: ([ c])(\d{0,5})$
         // 2. acc: ([acd ])([0-9d]{8,13})c?$
         // 3. routing: a(\d{9})a
         // 4. 2nd attempt for check: ^[abcd ]*(\d+)[abcd ]*$
-
 
         Pair<String, String> pair;
 
@@ -134,26 +135,4 @@ public class CheckData {
 
         return new Pair<>(parsed, src);
     }
-
-    public static void main(String[] args) {
-
-        Pattern checkEndingPattern = Pattern.compile("([ c%])(\\d{0,5})$"); // get $2
-
-        String res = checkEndingPattern.matcher("%971907194% 9100712469% 0949").replaceAll("#\\1");
-
-        System.out.print("Hello " + res);
-    }
-
-//    public String findPattern(String pattern, String replace) {
-//        String s = "UNRECOGNIZED";
-//        Pattern pat = Pattern.compile(pattern);
-//        Matcher m = pat.matcher(toCut);
-//
-//        while (m.find()) {
-//            s = m.group().replace(replace, "");
-//        }
-//
-//        toCut = toCut.replaceAll(s, " ");
-//        return s;
-//    }
 }

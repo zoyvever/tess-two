@@ -6,6 +6,7 @@ import android.graphics.Rect;
 import android.util.Log;
 import android.util.Pair;
 
+import com.example.npakudin.testocr.Utils;
 import com.example.npakudin.testocr.micr.CalcUtils;
 import com.googlecode.leptonica.android.Binarize;
 import com.googlecode.leptonica.android.Pix;
@@ -26,103 +27,69 @@ public class MicrRecognizer {
 
     private static final String TAG = "MicrRecognizer";
 
-    public static CheckData recognize(Bitmap bm, String filename) {
+    public static CheckData recognize(Bitmap bitmap) {
 
-        Pix pix = ReadFile.readBitmap(bm);
-        CheckData checkData = innerRecognize(pix, filename);
-
-        return checkData;
-    }
-
-    private static CheckData innerRecognize(Pix pix, String filename) {
+        // 1. binarize with default params
+        // 2. find skew
+        // 3. unskew src image
+        // 4. raw recognize
+        // 5. find borders
+        // 6. recognize
+        // 7. if bad:
+        //      crop unskewed
+        //      binarize with other params
+        //      4 - 6
 
         List<Pair<Integer, Float>> windowAndThresholds = new ArrayList<>();
+        windowAndThresholds.add(new Pair<>(16, 0.80f));
         windowAndThresholds.add(new Pair<>(32, 0.80f));
+        windowAndThresholds.add(new Pair<>(64, 0.80f));
+        windowAndThresholds.add(new Pair<>(16, 0.35f));
 
-        // may be later allow it
-//        windowAndThresholds.add(new Pair<>(16, 0.80f));
-//        windowAndThresholds.add(new Pair<>(64, 0.80f));
-//        windowAndThresholds.add(new Pair<>(16, 0.35f));
+        boolean isCropped = false;
 
-        CheckData bestCheckData = null;
         for (Pair<Integer, Float> item : windowAndThresholds) {
             int windowSize = item.first;
             float threshold = item.second;
 
             try {
+                Pix pix = ReadFile.readBitmap(bitmap);
+                Pix binarized = Binarize.sauvolaBinarizeTiled(pix, windowSize, threshold, Binarize.SAUVOLA_DEFAULT_NUM_TILES_X, Binarize.SAUVOLA_DEFAULT_NUM_TILES_Y);
 
-                // binarize
-                Pix savuolaBinarized = Binarize.sauvolaBinarizeTiled(pix,
-                        windowSize, threshold,
-                        Binarize.SAUVOLA_DEFAULT_NUM_TILES_X, Binarize.SAUVOLA_DEFAULT_NUM_TILES_Y);
-                Bitmap bitmap = unskew(savuolaBinarized);
-                List<Symbol> symbols = rawRecognize(bitmap, null);
+                Bitmap unskewed;
+                if (!isCropped) {
+                    float skew = Skew.findSkew(binarized);
+                    unskewed = WriteFile.writeBitmap(Rotate.rotate(binarized, skew));
+                } else {
+                    unskewed = WriteFile.writeBitmap(binarized);
+                }
+                List<Symbol> symbols = rawRecognize(unskewed, null);
                 MicrInfo micrInfo = findBorders(symbols);
-
                 List<Symbol> filteredSymbols = MicrRecognizer.filterTheline(symbols, micrInfo);
 
-
-                Rect lineRect = new Rect(pix.getWidth(), pix.getHeight(), 0, 0);
-
-                Map<Integer, Integer> widthFrequenciesOf1 = new HashMap<>();
-                Map<Integer, Integer> widthFrequenciesDigit = new HashMap<>();
-                Map<Integer, Integer> heightFrequencies = new HashMap<>();
-                for (Symbol symbol : filteredSymbols) {
-                    if (symbol.confidence > 70) {
-
-                        if (symbol.symbol.matches("[0-9]")) {
-                            CalcUtils.putFrequency(heightFrequencies, symbol.rect.width());
-                            if (symbol.symbol.equals("1")) {
-                                CalcUtils.putFrequency(widthFrequenciesOf1, symbol.rect.width());
-                            } else {
-                                CalcUtils.putFrequency(widthFrequenciesDigit, symbol.rect.width());
-                            }
-                        }
-                    }
-
-                    if (symbol.rect.left < lineRect.left) {
-                        lineRect.left = symbol.rect.left;
-                    }
-                    if (symbol.rect.top < lineRect.top) {
-                        lineRect.top = symbol.rect.top;
-                    }
-                    if (symbol.rect.right > lineRect.right) {
-                        lineRect.right = symbol.rect.right;
-                    }
-                    if (symbol.rect.bottom > lineRect.bottom) {
-                        lineRect.bottom = symbol.rect.bottom;
-                    }
-                }
-
-                if (heightFrequencies.size() > 0) {
-                    Rect borderRect = new Rect(0, 0, pix.getWidth(), pix.getHeight());
-                    CalcUtils.rectWithMargins(lineRect, 10, borderRect);
-
-                    symbols = rawRecognize(bitmap, lineRect);
-                    micrInfo = findBorders(symbols);
-                    filteredSymbols = MicrRecognizer.filterTheline(symbols, micrInfo);
-                }
-
-                CheckData checkData = MicrRecognizer.joinThinSymbols(bitmap, filteredSymbols, micrInfo);
-
+                CheckData checkData = MicrRecognizer.joinThinSymbols(filteredSymbols, micrInfo);
                 if (checkData.isOk) {
-                    //return checkData;
+                    //Log.d(TAG, "OK recognize image with windowSize: " + windowSize + "; threshold: " + threshold);
+                    return checkData;
                 }
-                if (bestCheckData == null || bestCheckData.confidence < checkData.confidence) {
-                    bestCheckData = checkData;
+                //Log.d(TAG, "Cannot recognize image with windowSize: " + windowSize + "; threshold: " + threshold);
+
+                if (!isCropped) {
+                    // crop image
+                    bitmap = Utils.cropBitmap(unskewed, Math.max(0, micrInfo.top - 10), Math.min(unskewed.getHeight(), micrInfo.bottom + 10));
+                    isCropped = true;
                 }
-
-
             } catch (Exception e) {
-                Log.e(TAG, "Cannot recognize pic " + String.format("%s_%s_%s.jpg", filename, windowSize, threshold), e);
+                Log.e(TAG, "Exception on recognize image with windowSize: " + windowSize + "; threshold: " + threshold, e);
             }
         }
-        return bestCheckData;
+        Log.d(TAG, "Cannot recognize image with any params");
+        return null;
     }
 
 
 
-    public static List<Symbol> rawRecognize(Bitmap bm, Rect poiRect) {
+    private static List<Symbol> rawRecognize(Bitmap bm, Rect poiRect) {
 
         TessBaseAPI baseApi = createTessBaseApi();
         baseApi.setImage(bm);
@@ -149,12 +116,8 @@ public class MicrRecognizer {
         return symbols;
     }
 
-    public static Bitmap unskew(Pix imag) {
-        Float s = Skew.findSkew(imag);
-        return WriteFile.writeBitmap(Rotate.rotate(imag, s));
-    }
 
-    public static MicrInfo findBorders(List<Symbol> symbols) {
+    private static MicrInfo findBorders(List<Symbol> symbols) {
 
         int minWidth = 1000;
 
@@ -194,7 +157,7 @@ public class MicrRecognizer {
      * Remove overlapping symbols
      *
      */
-    public static List<Symbol> filterTheline(List<Symbol> symbols, MicrInfo micrInfo) {
+    private static List<Symbol> filterTheline(List<Symbol> symbols, MicrInfo micrInfo) {
 
         int right = 0;
         List<Symbol> filteredSymbols = new ArrayList<>();
@@ -220,20 +183,16 @@ public class MicrRecognizer {
      * Then tries to innerRecognize again
      *
      */
-    public static CheckData joinThinSymbols(Bitmap bm, List<Symbol> rawSymbols, MicrInfo micrInfo) {
+    private static CheckData joinThinSymbols(List<Symbol> rawSymbols, MicrInfo micrInfo) {
 
         StringBuilder builder = new StringBuilder();
 
-        Symbol prevSymbol = null;
         double conf = 0;
         double minconf = 100;
         List<Symbol> symbols = new ArrayList<>();
 
         for (int i = 0; i < rawSymbols.size(); i++) {
-            Symbol rawSymbol = rawSymbols.get(i);
-            Symbol symbol = null;
-
-            symbol = rawSymbol;
+            Symbol symbol = rawSymbols.get(i);
 
             if (symbol != null && symbol.confidence >= 70) {
 
@@ -241,9 +200,6 @@ public class MicrRecognizer {
                 if (symbols.size() > 0) {
                     double prevRight = symbols.get(symbols.size() - 1).rect.right;
                     if (symbol.rect.left - prevRight > micrInfo.typicalWidth * 1.2) {
-
-                        Log.d(TAG, "space: " + (symbol.rect.left - prevRight) + " - " + (micrInfo.typicalWidth * 1.2));
-
                         isAddSpace = true;
                     }
                 }
@@ -251,7 +207,6 @@ public class MicrRecognizer {
                 if (isAddSpace) {
                     builder.append(" ");
                 }
-
 
                 symbols.add(symbol);
                 builder.append(symbol.symbol);
@@ -263,7 +218,7 @@ public class MicrRecognizer {
             }
         }
 
-        CheckData checkData = new CheckData(bm, builder.toString(), symbols, conf / symbols.size());
+        CheckData checkData = new CheckData(builder.toString(), conf / symbols.size());
         checkData.minConfidence = minconf;
         return checkData;
     }
@@ -276,7 +231,7 @@ public class MicrRecognizer {
         mcrFilePath = Asset2File.init(context);
     }
 
-    public static TessBaseAPI createTessBaseApi() {
+    private static TessBaseAPI createTessBaseApi() {
         TessBaseAPI baseApi = new TessBaseAPI();
         baseApi.init(mcrFilePath, "mcr");
         return baseApi;
