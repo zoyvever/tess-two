@@ -1,13 +1,13 @@
 package com.example.npakudin.testocr;
 
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Pair;
 import android.view.LayoutInflater;
@@ -32,7 +32,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     private static final String TAG = "MainActivity";
     TextView textViewRes;
@@ -139,6 +139,7 @@ public class MainActivity extends AppCompatActivity {
         options.inMutable = true;
         Context context = getApplicationContext();
         float scale = context.getResources().getDisplayMetrics().density;
+        MicrRecognizer.scale = scale;
 
         int symbolErrors = 0;
         int totalSymbols = 0;
@@ -156,33 +157,37 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
                 Log.d(TAG, "file: " + file + "; recognizing...");
-                CheckData checkData = MicrRecognizer.recognize(src);
-                checkData.res = DrawUtils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText);
+                CheckData checkData = MicrRecognizer.recognize(src, file);
+                if (checkData!= null && checkData.res != null) {
 
-                String wholeText = checkData.wholeText.replace(" ", "").replace("%", "a");
+                    String wholeText = checkData.wholeText;//.replace(" ", "").replace("%", "a");
 
-                checkData.realText = file.substring(0, file.length() - 5);
-                checkData.distance = levenshteinDistance(wholeText, checkData.realText);
+                    checkData.realText = file.substring(0, file.length() - 5);
+                    checkData.distance = DrawUtils.levenshteinDistance(wholeText, checkData.realText);
 
-                totalSymbols += checkData.wholeText.length();
-                symbolErrors += checkData.distance;
-                if (checkData.distance == 0) {
-                    recognizedChecks++;
-                }
-                //saveBitmap(checkData.res, file.substring(0, file.length() - 4));
+                    checkData.res = DrawUtils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText, checkData.distance);
 
-                //checkData.res = null;
 
-                Log.d(TAG, "min conf: " + checkData.minConfidence + "; avg conf: " + checkData.confidence);
-                if (checkData.distance == 0) {
+                    totalSymbols += checkData.wholeText.length();
+                    symbolErrors += checkData.distance;
+                    if (checkData.distance == 0) {
+                        recognizedChecks++;
+                    }
+                    //saveBitmap(checkData.res, file.substring(0, file.length() - 4));
+
                     //checkData.res = null;
-                } else {
-                    Log.d(TAG, "file: " + file + "; src           : " + checkData.realText);
-                    Log.d(TAG, "file: " + file + "; BAD recognized: " + checkData.wholeText);
-                }
 
-                checkData.filename = file;
-                entities.add(checkData);
+                    Log.d(TAG, "min conf: " + checkData.minConfidence + "; avg conf: " + checkData.confidence);
+                    if (checkData.distance == 0) {
+                        //checkData.res = null;
+                    } else {
+                        Log.d(TAG, "file: " + file + "; src           : " + checkData.realText);
+                        Log.d(TAG, "file: " + file + "; BAD recognized: " + checkData.wholeText);
+                    }
+
+                    checkData.filename = file;
+                    entities.add(checkData);
+                }
             }
 
             info = "symbolErrors: " + symbolErrors + " / " + totalSymbols + " = " + (symbolErrors/(double)totalSymbols) +
@@ -190,10 +195,10 @@ public class MainActivity extends AppCompatActivity {
             Log.d("MainActivity", info);
 
 
-            Log.d(TAG, "Char width");
-            handleStats(MicrRecognizer.globalWidth);
-            Log.d(TAG, "Char height");
-            handleStats(MicrRecognizer.globalHeight);
+//            Log.d(TAG, "Char width");
+//            handleStats(MicrRecognizer.globalWidth);
+//            Log.d(TAG, "Char height");
+//            handleStats(MicrRecognizer.globalHeight);
 
 //            for (Map.Entry<String, Map<Integer, Integer>> letterItem : MicrRecognizer.globalHeight.entrySet()) {
 //                Map<Integer, Integer> map = letterItem.getValue();
@@ -263,63 +268,5 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, item.getKey() + ", " + item.getValue());
             }
         }
-    }
-
-    private boolean saveBitmap(Bitmap bm, String name) {
-        try {
-            File pictureFile = getOutputMediaFile(name + ".jpg");
-
-            if (pictureFile == null) {
-                return true;
-            }
-            FileOutputStream fos = new FileOutputStream(pictureFile);
-            bm.compress(Bitmap.CompressFormat.JPEG, 90, fos);
-            fos.close();
-        } catch (Exception e) {
-            Log.e(TAG, "Cannot save pic", e);
-        }
-        return false;
-    }
-
-    private static File getOutputMediaFile(String name) {
-        File mediaStorageDir = new File("/sdcard/Pictures", "checks");
-
-        if (!mediaStorageDir.exists()) {
-            if (!mediaStorageDir.mkdirs()) {
-                return null;
-            }
-        }
-
-//        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-//        File mediaFile;
-        File mediaFile = new File(mediaStorageDir.getPath() + File.separator + name);
-
-        return mediaFile;
-    }
-
-    public int levenshteinDistance(String recognizedText, String fileName) {
-        char[] lhs = recognizedText.toCharArray();
-        char[] rhs = fileName.toCharArray();
-        int len0 = lhs.length + 1;
-        int len1 = rhs.length + 1;
-        int[] cost = new int[len0];
-        int[] newcost = new int[len0];
-        for (int i = 0; i < len0; i++) cost[i] = i;
-        for (int j = 1; j < len1; j++) {
-            newcost[0] = j;
-
-            for (int i = 1; i < len0; i++) {
-                int match = (lhs[i - 1] == rhs[j - 1]) ? 0 : 1;
-                int cost_replace = cost[i - 1] + match;
-                int cost_insert = cost[i] + 1;
-                int cost_delete = newcost[i - 1] + 1;
-                newcost[i] = Math.min(Math.min(cost_insert, cost_delete), cost_replace);
-            }
-
-            int[] swap = cost;
-            cost = newcost;
-            newcost = swap;
-        }
-        return cost[len0 - 1];
     }
 }
