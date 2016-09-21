@@ -3,6 +3,8 @@ package com.example.npakudin.testocr.recognition;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.util.Pair;
 
@@ -24,8 +26,25 @@ import java.util.Map;
 public class MicrRecognizer {
 
     private static final String TAG = "MicrRecognizer";
+    private static String mcrFilePath = null;
 
-    public static CheckData recognize(Bitmap bitmap) {
+    // singleton, because creates file at exact path
+    public static synchronized void init(@NonNull Context context) {
+        if (mcrFilePath != null) {
+            mcrFilePath = Asset2File.init(context);
+        }
+    }
+
+    @NonNull
+    private static TessBaseAPI createTessBaseApi() {
+        TessBaseAPI baseApi = new TessBaseAPI();
+        baseApi.init(mcrFilePath, "mcr");
+        return baseApi;
+    }
+
+
+    @Nullable
+    public static CheckData recognize(@NonNull Bitmap bitmap) {
 
         // 1. binarize with default params
         // 2. find skew
@@ -86,8 +105,8 @@ public class MicrRecognizer {
     }
 
 
-
-    private static List<Symbol> rawRecognize(Bitmap bm, Rect poiRect) {
+    @NonNull
+    private static List<Symbol> rawRecognize(@NonNull Bitmap bm, @Nullable Rect poiRect) {
 
         TessBaseAPI baseApi = createTessBaseApi();
         baseApi.setImage(bm);
@@ -114,8 +133,8 @@ public class MicrRecognizer {
         return symbols;
     }
 
-
-    private static MicrInfo findBorders(List<Symbol> symbols) {
+    @NonNull
+    private static MicrInfo findBorders(@NonNull List<Symbol> symbols) {
 
         int minWidth = 1000;
 
@@ -155,7 +174,8 @@ public class MicrRecognizer {
      * Remove overlapping symbols
      *
      */
-    private static List<Symbol> filterTheline(List<Symbol> symbols, MicrInfo micrInfo) {
+    @NonNull
+    private static List<Symbol> filterTheline(@NonNull List<Symbol> symbols, @NonNull MicrInfo micrInfo) {
 
         int right = 0;
         List<Symbol> filteredSymbols = new ArrayList<>();
@@ -181,7 +201,8 @@ public class MicrRecognizer {
      * Then tries to innerRecognize again
      *
      */
-    private static CheckData joinThinSymbols(List<Symbol> rawSymbols, MicrInfo micrInfo) {
+    @NonNull
+    private static CheckData joinThinSymbols(@NonNull List<Symbol> rawSymbols, @NonNull MicrInfo micrInfo) {
 
         StringBuilder builder = new StringBuilder();
 
@@ -219,19 +240,5 @@ public class MicrRecognizer {
         CheckData checkData = new CheckData(builder.toString(), conf / symbols.size());
         checkData.minConfidence = minconf;
         return checkData;
-    }
-
-
-
-    private static String mcrFilePath = null;
-
-    public static void init(Context context) {
-        mcrFilePath = Asset2File.init(context);
-    }
-
-    private static TessBaseAPI createTessBaseApi() {
-        TessBaseAPI baseApi = new TessBaseAPI();
-        baseApi.init(mcrFilePath, "mcr");
-        return baseApi;
     }
 }

@@ -21,7 +21,7 @@ class Asset2File {
     //private static String mcrFilePath = null;
 
     @NonNull
-    public static String init(Context context) {
+    public static String init(@NonNull Context context) {
         File baseDir = getCacheDir(context);
         if (baseDir == null) {
             throw new IllegalStateException("Cannot access temporary dir");
@@ -30,14 +30,14 @@ class Asset2File {
         File file = new File(tessdata, "mcr.traineddata");
 
         if (!file.delete()) {
-            Log.w(LOGTAG, "Cannot delete file");
+            Log.w(LOGTAG, "Cannot delete mcr.traineddata");
         }
         if (!tessdata.delete()) {
             Log.w(LOGTAG, "Cannot delete tessdata");
         }
         Log.w(LOGTAG, "tessdata.exists() :" + tessdata.exists());
         if (!tessdata.mkdirs()) {
-            Log.w(LOGTAG, "Cannot mkdirs");
+            Log.w(LOGTAG, "Cannot mkdirs for tessdata");
         }
 
         Log.w(LOGTAG, "filename: " + file.getAbsolutePath());
@@ -75,7 +75,7 @@ class Asset2File {
     }
 
     @Nullable
-    private static File getCacheDir(Context context) {
+    private static File getCacheDir(@NonNull Context context) {
         File maxDir = null;
         long maxSpace = -1;
 

@@ -1,5 +1,7 @@
 package com.example.npakudin.testocr.recognition;
 
+import android.support.annotation.NonNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.MatchResult;
@@ -14,23 +16,19 @@ public class CheckData {
 
     public boolean isOk;
     public String rawText = "";
-
     public double minConfidence = 0;
     public double confidence = 0;
     public String errorMessage;
 
-    public CheckData() {
 
-    }
-
-    public CheckData(String rawText, double confidence) {
+    public CheckData(@NonNull String rawText, double confidence) {
         this.rawText = rawText;
         this.confidence=confidence;
 
         parseAndCheck(rawText);
     }
 
-    public void parseAndCheck(String str) {
+    private void parseAndCheck(String str) {
 
         parseCheck(str);
         checkRoutingNumberChecksum();

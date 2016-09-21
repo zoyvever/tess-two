@@ -19,7 +19,7 @@ public class MicrInfo {
 
     }
 
-    public MicrInfo(int top, int bottom, int minimumCharWidth,  int typicalWidth, int typicalHeight,int inLineRecognized) {
+    public MicrInfo(int top, int bottom, int minimumCharWidth,  int typicalWidth, int typicalHeight, int inLineRecognized) {
         this.top = top;
         this.bottom = bottom;
         this.minimumCharWidth = minimumCharWidth;
