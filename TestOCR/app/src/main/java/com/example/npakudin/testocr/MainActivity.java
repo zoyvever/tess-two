@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -17,8 +16,8 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import com.example.npakudin.testocr.micr.CheckData;
-import com.example.npakudin.testocr.micr.MicrRecognizer;
+import com.example.npakudin.testocr.recognition.CheckData;
+import com.example.npakudin.testocr.recognition.MicrRecognizer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -136,7 +135,6 @@ public class MainActivity extends Activity {
         options.inMutable = true;
         Context context = getApplicationContext();
         float scale = context.getResources().getDisplayMetrics().density;
-        MicrRecognizer.scale = scale;
 
         int symbolErrors = 0;
         int totalSymbols = 0;
@@ -225,11 +223,6 @@ public class MainActivity extends Activity {
 //            }
 
 
-            Log.d(TAG, "RecResults begin");
-            for (MicrRecognizer.RecResult item : MicrRecognizer.recResults) {
-                Log.d(TAG, item.toString());
-            }
-            Log.d(TAG, "RecResults end");
 
         } catch (IOException e) {
             Log.e(TAG, e.toString());

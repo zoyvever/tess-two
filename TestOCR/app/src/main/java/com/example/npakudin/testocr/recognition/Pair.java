@@ -1,4 +1,4 @@
-package com.example.npakudin.testocr.micr;
+package com.example.npakudin.testocr.recognition;
 
 /**
  * Created by npakudin on 16/09/16

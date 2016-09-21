@@ -7,7 +7,7 @@ import android.graphics.Paint;
 import android.os.Environment;
 import android.util.Log;
 
-import com.example.npakudin.testocr.micr.Symbol;
+import com.example.npakudin.testocr.recognition.Symbol;
 
 import java.io.File;
 import java.io.FileOutputStream;

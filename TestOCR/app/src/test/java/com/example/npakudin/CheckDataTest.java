@@ -1,6 +1,6 @@
 package com.example.npakudin;
 
-import com.example.npakudin.testocr.micr.CheckData;
+import com.example.npakudin.testocr.recognition.CheckData;
 
 import org.junit.Assert;
 import org.junit.Before;
