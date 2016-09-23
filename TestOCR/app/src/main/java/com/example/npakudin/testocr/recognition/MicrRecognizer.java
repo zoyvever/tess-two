@@ -30,7 +30,7 @@ public class MicrRecognizer {
 
     // singleton, because creates file at exact path
     public static synchronized void init(@NonNull Context context) {
-        if (mcrFilePath != null) {
+        if (mcrFilePath == null) {
             mcrFilePath = Asset2File.init(context);
         }
     }
@@ -85,6 +85,23 @@ public class MicrRecognizer {
                 List<Symbol> filteredSymbols = MicrRecognizer.filterTheline(symbols, micrInfo);
 
                 CheckData checkData = MicrRecognizer.joinThinSymbols(filteredSymbols, micrInfo);
+
+                if (filteredSymbols.size() > 0) {
+                    int left = filteredSymbols.get(0).rect.left;
+                    int right = filteredSymbols.get(filteredSymbols.size() - 1).rect.right;
+
+                    if ((left < micrInfo.typicalWidth * 2) ||
+                            (unskewed.getWidth() - right < micrInfo.typicalWidth * 2)) {
+                        // MICR text may be cutted
+                        checkData.errorMessage += " MICR text can be cutted, leave more free space at the left and right of text";
+                        checkData.isOk = false;
+
+                        // cropping won't help => return checkData now
+                        return checkData;
+                    }
+                }
+
+
                 if (checkData.isOk) {
                     //Log.d(TAG, "OK recognize image with windowSize: " + windowSize + "; threshold: " + threshold);
                     return checkData;
@@ -156,9 +173,6 @@ public class MicrRecognizer {
                 RecognitionUtils.putFrequency(topFrequencies, rect.top);
                 RecognitionUtils.putFrequency(widthFrequencies, rect.width());
                 RecognitionUtils.putFrequency(heightFrequencies, rect.height());
-
-//                RecognitionUtils.putStringFrequency(globalWidth, rawSymbol.symbol, rect.width());
-//                RecognitionUtils.putStringFrequency(globalHeight, rawSymbol.symbol, rect.height());
             }
         }
         int topBorder = RecognitionUtils.findMostFrequentItem(topFrequencies);
