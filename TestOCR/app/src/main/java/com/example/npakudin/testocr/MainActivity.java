@@ -157,7 +157,7 @@ public class MainActivity extends Activity {
 
                     String rawText = checkData.rawText;//.replace(" ", "").replace("%", "a");
 
-                    String realText = file.substring(0, file.length() - 5);
+                    String realText = file.substring(0, file.length() - 5).replace("_", " ");
                     int distance = Utils.levenshteinDistance(rawText, realText);
 
                     totalSymbols += checkData.rawText.length();

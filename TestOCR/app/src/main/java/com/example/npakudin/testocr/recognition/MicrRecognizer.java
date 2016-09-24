@@ -18,6 +18,7 @@ import com.googlecode.tesseract.android.ResultIterator;
 import com.googlecode.tesseract.android.TessBaseAPI;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,8 @@ import java.util.Map;
 public class MicrRecognizer {
 
     private static final String TAG = "MicrRecognizer";
+    public static final int MIN_CONFIDENCE = 70;
+    public static final double TOLERANCE = 0.2;
     private static String mcrFilePath = null;
 
     // singleton, because creates file at exact path
@@ -81,8 +84,10 @@ public class MicrRecognizer {
                     unskewed = WriteFile.writeBitmap(binarized);
                 }
                 List<Symbol> symbols = rawRecognize(unskewed, null);
-                MicrInfo micrInfo = findBorders(symbols);
-                List<Symbol> filteredSymbols = MicrRecognizer.filterTheline(symbols, micrInfo);
+                Rect borders = findBorders(symbols);
+                List<Symbol> filteredSymbols = MicrRecognizer.filterTheline(symbols, borders);
+                MicrInfo micrInfo = findStats(filteredSymbols);
+                filteredSymbols = MicrRecognizer.filterTheline(filteredSymbols, micrInfo);
 
                 CheckData checkData = MicrRecognizer.joinThinSymbols(filteredSymbols, micrInfo);
 
@@ -110,7 +115,7 @@ public class MicrRecognizer {
 
                 if (!isCropped) {
                     // crop image
-                    bitmap = RecognitionUtils.cropBitmap(unskewed, Math.max(0, micrInfo.top - 10), Math.min(unskewed.getHeight(), micrInfo.bottom + 10));
+                    bitmap = RecognitionUtils.cropBitmap(unskewed, Math.max(0, borders.top - 10), Math.min(unskewed.getHeight(), borders.bottom + 10));
                     isCropped = true;
                 }
             } catch (Exception e) {
@@ -151,37 +156,53 @@ public class MicrRecognizer {
     }
 
     @NonNull
-    private static MicrInfo findBorders(@NonNull List<Symbol> symbols) {
+    private static Rect findBorders(@NonNull List<Symbol> symbols) {
 
-        int minWidth = 1000;
+        int left = Integer.MAX_VALUE;
+        int right = Integer.MIN_VALUE;
 
         Map<Integer, Integer> bottomFrequencies = new HashMap<>();
         Map<Integer, Integer> topFrequencies = new HashMap<>();
-        Map<Integer, Integer> widthFrequencies = new HashMap<>();
-        Map<Integer, Integer> heightFrequencies = new HashMap<>();
 
         for (Symbol rawSymbol : symbols) {
             Rect rect = rawSymbol.rect;
 
-            if (rawSymbol.confidence > 70) {
-                if ((rect.width()) < minWidth) {
-                    minWidth = rect.width();
-                }
-
+            if (rawSymbol.confidence > MIN_CONFIDENCE) {
 
                 RecognitionUtils.putFrequency(bottomFrequencies, rect.bottom);
                 RecognitionUtils.putFrequency(topFrequencies, rect.top);
-                RecognitionUtils.putFrequency(widthFrequencies, rect.width());
-                RecognitionUtils.putFrequency(heightFrequencies, rect.height());
+
+                if (rect.left < left) {
+                    left = rect.left;
+                }
+                if (rect.right > right) {
+                    right = rect.right;
+                }
             }
         }
         int topBorder = RecognitionUtils.findMostFrequentItem(topFrequencies);
         int bottomBorder = RecognitionUtils.findMostFrequentItem(bottomFrequencies);
-        int typicalWidth = RecognitionUtils.findMostFrequentItem(widthFrequencies);
-        int typicalHeight = RecognitionUtils.findMostFrequentItem(heightFrequencies);
-        int inLineRecognized = RecognitionUtils.findTheLine(topFrequencies, topBorder, 5); // border = 5
-        int tolerance = (int) (0.6 * (topBorder - bottomBorder));
-        return new MicrInfo(topBorder + tolerance, bottomBorder - tolerance, minWidth, typicalWidth, typicalHeight, inLineRecognized);
+        int tolerance = (int) (0.6 * (bottomBorder - topBorder));
+        return new Rect(left, topBorder - tolerance, right, bottomBorder + tolerance);
+    }
+
+    @NonNull
+    private static MicrInfo findStats(@NonNull List<Symbol> symbols) {
+
+        List<Integer> widths = new ArrayList<>();
+        List<Integer> heights = new ArrayList<>();
+
+        for (Symbol rawSymbol : symbols) {
+            widths.add(rawSymbol.rect.width());
+            heights.add(rawSymbol.rect.height());
+        }
+
+        Collections.sort(widths);
+        Collections.sort(heights);
+
+
+
+        return new MicrInfo(widths.get(widths.size() / 2), heights.get(heights.size() / 2));
     }
 
     /**
@@ -189,14 +210,14 @@ public class MicrRecognizer {
      *
      */
     @NonNull
-    private static List<Symbol> filterTheline(@NonNull List<Symbol> symbols, @NonNull MicrInfo micrInfo) {
+    private static List<Symbol> filterTheline(@NonNull List<Symbol> symbols, @NonNull Rect borders) {
 
         int right = 0;
         List<Symbol> filteredSymbols = new ArrayList<>();
         for (Symbol symbol : symbols) {
 
             Rect rect = symbol.rect;
-            if (micrInfo.contains(rect) && symbol.rect.height() < micrInfo.typicalHeight * 1.2) {
+            if (symbol.confidence >= MIN_CONFIDENCE && borders.contains(rect)) {
                 //if the rectangle starts before the last one ends- throw it away
                 if (rect.left > right) {
                     //otherwise remember when it ends for future comparing
@@ -208,6 +229,45 @@ public class MicrRecognizer {
             }
         }
         return filteredSymbols;
+    }
+
+    /**
+     * Remove overlapping symbols
+     *
+     */
+    @NonNull
+    private static List<Symbol> filterTheline(@NonNull List<Symbol> symbols, @NonNull MicrInfo micrInfo) {
+
+        List<Symbol> filteredSymbols = new ArrayList<>();
+        for (Symbol symbol : symbols) {
+
+            Rect rect = symbol.rect;
+            if (symbol.symbol.matches("[ab02-9]]")) {
+                if (!isWidthOk(rect, micrInfo) || !isHeightOk(rect, micrInfo)) {
+                    continue;
+                }
+            } else if (symbol.symbol.matches("1")) {
+                if (!isHeightOk(rect, micrInfo)) {
+                    continue;
+                }
+            } else if (symbol.symbol.matches("cd")) {
+                if (!isWidthOk(rect, micrInfo)) {
+                    continue;
+                }
+            }
+            filteredSymbols.add(symbol);
+        }
+        return filteredSymbols;
+    }
+
+    private static boolean isWidthOk(Rect rect, MicrInfo micrInfo) {
+        return rect.width() <= micrInfo.typicalWidth * (1 + TOLERANCE) &&
+                rect.width() >= micrInfo.typicalWidth * (1 - TOLERANCE);
+    }
+
+    private static boolean isHeightOk(Rect rect, MicrInfo micrInfo) {
+        return rect.height() <= micrInfo.typicalHeight * (1 + TOLERANCE) &&
+                rect.height() >= micrInfo.typicalHeight * (1 - TOLERANCE);
     }
 
     /**
@@ -227,12 +287,12 @@ public class MicrRecognizer {
         for (int i = 0; i < rawSymbols.size(); i++) {
             Symbol symbol = rawSymbols.get(i);
 
-            if (symbol != null && symbol.confidence >= 70) {
+            if (symbol != null && symbol.confidence >= MIN_CONFIDENCE) {
 
                 boolean isAddSpace = false;
                 if (symbols.size() > 0) {
                     double prevRight = symbols.get(symbols.size() - 1).rect.right;
-                    if (symbol.rect.left - prevRight > micrInfo.typicalWidth * 1.2) {
+                    if (symbol.rect.left - prevRight > micrInfo.typicalWidth * (1 + TOLERANCE)) {
                         isAddSpace = true;
                     }
                 }

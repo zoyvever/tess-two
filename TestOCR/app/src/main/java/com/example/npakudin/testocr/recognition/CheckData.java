@@ -133,4 +133,18 @@ public class CheckData {
 
         return new Pair<>(parsed, src);
     }
+
+    @Override
+    public String toString() {
+        return "CheckData{" +
+                "routingNumber='" + routingNumber + '\'' +
+                ", accountNumber='" + accountNumber + '\'' +
+                ", checkNumber='" + checkNumber + '\'' +
+                ", isOk=" + isOk +
+                ", rawText='" + rawText + '\'' +
+                ", minConfidence=" + minConfidence +
+                ", confidence=" + confidence +
+                ", errorMessage='" + errorMessage + '\'' +
+                '}';
+    }
 }
