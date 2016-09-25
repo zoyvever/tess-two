@@ -1,7 +1,8 @@
-package com.example.npakudin.testocr.recognition;
+package com.citybase.pos.modules.checkscanner.recognition;
 
 import android.content.Context;
 import android.content.res.AssetManager;
+import android.graphics.Bitmap;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -10,13 +11,16 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.UUID;
 
 /**
  * Created by npakudin on 10/09/16
  */
 class Asset2File {
 
-    private static final String LOGTAG = "Asset2File";
+    private static final String TAG = "Asset2File";
 
     //private static String mcrFilePath = null;
 
@@ -30,19 +34,19 @@ class Asset2File {
         File file = new File(tessdata, "mcr.traineddata");
 
         if (!file.delete()) {
-            Log.w(LOGTAG, "Cannot delete mcr.traineddata");
+            Log.w(TAG, "Cannot delete mcr.traineddata");
         }
         if (!tessdata.delete()) {
-            Log.w(LOGTAG, "Cannot delete tessdata");
+            Log.w(TAG, "Cannot delete tessdata");
         }
-        Log.w(LOGTAG, "tessdata.exists() :" + tessdata.exists());
+        Log.w(TAG, "tessdata.exists() :" + tessdata.exists());
         if (!tessdata.mkdirs()) {
-            Log.w(LOGTAG, "Cannot mkdirs for tessdata");
+            Log.w(TAG, "Cannot mkdirs for tessdata");
         }
 
-        Log.w(LOGTAG, "filename: " + file.getAbsolutePath());
+        Log.w(TAG, "filename: " + file.getAbsolutePath());
         try {
-            Log.w(LOGTAG, "file.exists: " + file.exists() + " file.canWrite: " + file.canWrite());
+            Log.w(TAG, "file.exists: " + file.exists() + " file.canWrite: " + file.canWrite());
 
 
             FileOutputStream outputStream = new FileOutputStream(file);
@@ -67,9 +71,9 @@ class Asset2File {
                 }
             }
         } catch (Exception e) {
-            Log.e(LOGTAG, "copy", e);
+            Log.e(TAG, "copy", e);
         }
-        Log.wtf(LOGTAG, "file: " + file.exists() + " len : " + file.length());
+        Log.wtf(TAG, "file: " + file.exists() + " len : " + file.length());
 
         return baseDir.getAbsolutePath();
     }
@@ -79,7 +83,7 @@ class Asset2File {
         File maxDir = null;
         long maxSpace = -1;
 
-        Log.w(LOGTAG, "getCacheDir()");
+        Log.w(TAG, "getCacheDir()");
 
         for (File dir : context.getExternalCacheDirs()) {
             if (dir != null) {
@@ -90,7 +94,7 @@ class Asset2File {
                     maxDir = dir;
                 }
             } else {
-                Log.w(LOGTAG, "cache dir is null");
+                Log.w(TAG, "cache dir is null");
             }
         }
 
@@ -102,4 +106,44 @@ class Asset2File {
     }
 
 
+    public static boolean saveBitmap(Bitmap bm, String name) {
+        try {
+            //make a new picture file
+            File pictureFile = getOutputMediaFile(name);
+
+            if (pictureFile == null) {
+                return true;
+            }
+
+            //write the file
+            FileOutputStream fos = new FileOutputStream(pictureFile);
+            bm.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+            //fos.write(data);
+            fos.close();
+        } catch (Exception e) {
+            Log.e(TAG, "Cannot save pic", e);
+        }
+        return false;
+    }
+
+    public static File getOutputMediaFile(String name) {
+
+        File mediaStorageDir = new File("/sdcard/POS checks");
+
+        if (!mediaStorageDir.exists()) {
+            if (!mediaStorageDir.mkdirs()) {
+                return null;
+            }
+        }
+
+        File mediaFile = new File(mediaStorageDir.getPath() + File.separator + name + ".jpg");
+
+        return mediaFile;
+    }
+
+    public static String uniqueName() {
+
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        return timeStamp + "_" + UUID.randomUUID().toString().substring(0, 5);
+    }
 }

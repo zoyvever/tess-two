@@ -1,4 +1,4 @@
-package com.example.npakudin.testocr;
+package com.citybase.pos.modules.checkscanner;
 
 
 import android.app.Activity;
@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -16,17 +17,15 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import com.example.npakudin.testocr.recognition.CheckData;
-import com.example.npakudin.testocr.recognition.MicrRecognizer;
+import com.citybase.pos.modules.checkscanner.recognition.CheckData;
+import com.citybase.pos.modules.checkscanner.recognition.MicrRecognizer;
+import com.example.npakudin.testocr.R;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
 public class MainActivity extends Activity {
 
@@ -64,13 +63,13 @@ public class MainActivity extends Activity {
 
                 CheckData checkData = entities.get(position);
 
-//                holder.imageView().setImageBitmap(checkData.res);
-//
-//                boolean isBad = checkData.isOk && (checkData.distance != 0);
-//
-//                holder.textView().setText((isBad ? "BAD " : "") + checkData.distance + " - " + checkData.filename + " - " + checkData.descr);
-//                holder.textView2().setText(checkData.rawText);
-//                holder.textView().setTextColor(isBad ? Color.rgb(0xff,0,0) : Color.rgb(0,0,0));
+                holder.imageView().setImageBitmap(checkData.image);
+
+                //boolean isBad = checkData.isOk && (checkData.distance != 0);
+
+                //holder.textView().setText((isBad ? "BAD " : "") + checkData. + " - " + checkData.filename + " - " + checkData.descr);
+                holder.textView2().setText(checkData.rawText);
+                holder.textView().setTextColor(Color.rgb(0,0,0));
 
                 return convertView;
             }
@@ -140,40 +139,45 @@ public class MainActivity extends Activity {
         int totalSymbols = 0;
 
         int recognizedChecks = 0;
+        int incorrectlyRecognizedChecks = 0;
 
         AssetManager assetManager = getApplicationContext().getAssets();
         try {
-            String[] list = getAssets().list("img");
+            String[] list = getAssets().list("img_ok");
             Arrays.sort(list);
 
             for (String file : list) {
                 Log.d(TAG, file);
-                InputStream istr = assetManager.open("img/" + file);
+                InputStream istr = assetManager.open("img_ok/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
                 Log.d(TAG, "file: " + file + "; recognizing...");
                 CheckData checkData = MicrRecognizer.recognize(src);
-                if (checkData!= null) {
+                if (checkData != null && checkData.isOk) {
 
                     String rawText = checkData.rawText;//.replace(" ", "").replace("%", "a");
 
-                    String realText = file.substring(0, file.length() - 5).replace("_", " ");
+                    //String realText = file.substring(0, file.length() - 5).replace("_", " ");
+                    String realText = "a271071321a c9080054103c 0903";
                     int distance = Utils.levenshteinDistance(rawText, realText);
 
                     totalSymbols += checkData.rawText.length();
                     symbolErrors += distance;
-                    if (distance == 0) {
-                        recognizedChecks++;
+                    recognizedChecks++;
+                    if (distance > 0) {
+                        incorrectlyRecognizedChecks++;
                     }
 
 
                     //checkData.res = Utils.drawRecText(checkData.res, scale, checkData.symbols, checkData.realText, checkData.distance);
-                    entities.add(checkData);
                 }
+                entities.add(checkData);
             }
 
             info = "symbolErrors: " + symbolErrors + " / " + totalSymbols + " = " + (symbolErrors/(double)totalSymbols) +
-                    ", recognizedChecks: " + recognizedChecks + " / " + list.length + " = " + (recognizedChecks / (double)list.length);
+                    ", recognizedChecks: " + recognizedChecks + " / " + list.length + " = " + (recognizedChecks / (double)list.length) +
+                    ", incorrectlyRecognizedChecks: " + incorrectlyRecognizedChecks + " / " + list.length + " = " + (incorrectlyRecognizedChecks / (double)list.length);
+
             Log.d("MainActivity", info);
 
 

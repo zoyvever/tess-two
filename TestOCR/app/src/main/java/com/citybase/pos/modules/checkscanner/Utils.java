@@ -1,14 +1,13 @@
-package com.example.npakudin.testocr;
+package com.citybase.pos.modules.checkscanner;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
 import android.os.Environment;
 import android.util.Log;
 
-import com.example.npakudin.testocr.recognition.Symbol;
+import com.citybase.pos.modules.checkscanner.recognition.Symbol;
 
 import java.io.File;
 import java.io.FileOutputStream;

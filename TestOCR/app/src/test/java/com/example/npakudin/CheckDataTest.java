@@ -1,6 +1,6 @@
 package com.example.npakudin;
 
-import com.example.npakudin.testocr.recognition.CheckData;
+import com.citybase.pos.modules.checkscanner.recognition.CheckData;
 
 import org.junit.Assert;
 import org.junit.Before;

@@ -1,5 +1,6 @@
-package com.example.npakudin.testocr.recognition;
+package com.citybase.pos.modules.checkscanner.recognition;
 
+import android.graphics.Bitmap;
 import android.support.annotation.NonNull;
 
 import java.util.ArrayList;
@@ -10,20 +11,28 @@ import java.util.regex.Pattern;
 
 public class CheckData {
 
-    public String routingNumber = "";
-    public String accountNumber = "";
-    public String checkNumber = "";
+    public String routingNumber;
+    public String accountNumber;
+    public String checkNumber;
 
     public boolean isOk;
-    public String rawText = "";
-    public double minConfidence = 0;
-    public double confidence = 0;
-    public String errorMessage;
+    public String rawText;
+    public double minConfidence;
+    public double confidence;
+    public String errorMessage = ""; // in other case starts with 'null' on concat
+    public Bitmap image;
 
 
     public CheckData(@NonNull String rawText, double confidence) {
         this.rawText = rawText;
         this.confidence=confidence;
+
+        //if (rawText.contains("#") || rawText.contains("@")) {
+        if (rawText.contains("#")) {
+            isOk = false;
+            errorMessage = "Cannot recognize some characters";
+            return;
+        }
 
         parseAndCheck(rawText);
     }
@@ -34,12 +43,16 @@ public class CheckData {
         checkRoutingNumberChecksum();
 
         this.isOk = routingNumber != null && accountNumber != null && checkNumber != null;
-        if (errorMessage != null && errorMessage.length() > 2) {
-            errorMessage = errorMessage.substring(2);
+        if (errorMessage != null) {
+            errorMessage = errorMessage.trim();
         }
     }
 
     private void checkRoutingNumberChecksum() {
+
+        if (routingNumber == null) {
+            return;
+        }
 
         char[] d = routingNumber.toCharArray();
         for (int i=0; i<d.length; i++) {
@@ -48,13 +61,13 @@ public class CheckData {
         }
         if (d.length != 9) {
             routingNumber = null;
-            errorMessage += ", routing number length is invalid";
+            errorMessage += "Routing number length is invalid\n";
         } else {
             if ((3*(d[0]+d[3]+d[6])+7*(d[1]+d[4]+d[7])+(d[2]+d[5]+d[8])) % 10 == 0) {
                 // ok
             } else {
                 routingNumber = null;
-                errorMessage += ", routing number checksum is invalid";
+                errorMessage += "Routing number checksum is invalid\n";
             }
         }
     }
@@ -70,7 +83,7 @@ public class CheckData {
         Pair<String, String> pair;
 
         // 1. try to find check number at the end
-        pair = parse(src, Pattern.compile("([ c])(\\d{0,5})$"), "$1", 2);
+        pair = parse(src, Pattern.compile("([ c])(\\d{2,5})$"), "$1", 2);
         if (pair.first != null && pair.first.length() > 0) {
             checkNumber = pair.first;
             src = pair.second;
@@ -86,7 +99,7 @@ public class CheckData {
             src = pair.second;
         } else {
             // not found - failure
-            errorMessage += ", cannot find account number";
+            errorMessage += "Cannot find account number\n";
             return;
         }
 
@@ -96,7 +109,7 @@ public class CheckData {
             routingNumber = pair.first;
             src = pair.second;
         } else {
-            errorMessage += ", cannot find routing number";
+            errorMessage += "Cannot find routing number\n";
             return;
         }
 
@@ -109,7 +122,7 @@ public class CheckData {
                 src = pair.second;
             } else {
                 // not found - failure
-                errorMessage += ", cannot find check number";
+                errorMessage += "Cannot find check number\n";
                 return;
             }
         }

@@ -1,4 +1,4 @@
-package com.example.npakudin.testocr.recognition;
+package com.citybase.pos.modules.checkscanner.recognition;
 
 import android.graphics.Rect;
 
