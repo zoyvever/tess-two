@@ -4,7 +4,6 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Rect;
-import android.support.annotation.ColorRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -30,6 +29,7 @@ import java.util.Map;
 public class MicrRecognizer {
 
     private static final String TAG = "MicrRecognizer";
+
     public static final int MIN_CONFIDENCE = 70;
     public static final double SYMBOL_SIZE_VARIATION = 0.2;
     public static final double FREE_SPACE_AT_LEFT =  1.5; // in symbols
@@ -85,28 +85,20 @@ public class MicrRecognizer {
             float threshold = item.second;
 
             try {
-//                long t0 = System.currentTimeMillis();
                 Pix pix = ReadFile.readBitmap(bitmap);
-//                long tread = System.currentTimeMillis();
                 Pix binarized = Binarize.sauvolaBinarizeTiled(pix, windowSize, threshold, Binarize.SAUVOLA_DEFAULT_NUM_TILES_X, Binarize.SAUVOLA_DEFAULT_NUM_TILES_Y);
-//                long tbinarize = System.currentTimeMillis();
 
                 Bitmap unskewed;
                 float skew = 0;
                 if (!isCropped) {
                     skew = Skew.findSkew(binarized);
-//                    long tfindSkew = System.currentTimeMillis();
                     unskewed = WriteFile.writeBitmap(Rotate.rotate(binarized, skew));
-
-                    //unskewed = unskewed.copy(Bitmap.Config.ARGB_8888, true);
-//                    long tunSkew = System.currentTimeMillis();
                 } else {
                     unskewed = WriteFile.writeBitmap(binarized);
                 }
                 assert unskewed != null; // if null - send a message
 
                 List<Symbol> symbols = rawRecognize(unskewed, null);
-//                long trawRecognize = System.currentTimeMillis();
                 Rect borders = findBorders(symbols);
                 List<Symbol> filteredSymbols = filterByBorders(symbols, borders);
                 MicrInfo micrInfo = findStats(filteredSymbols);
@@ -134,8 +126,6 @@ public class MicrRecognizer {
                     Rect firstRect = new Rect(firstOk.rect.left - 2 * (micrInfo.typicalWidth + micrInfo.typicalInterval), firstOk.rect.top, firstOk.rect.left - 1, firstOk.rect.bottom);
                     if (!checkIsEmpty(unskewed, firstRect)) {
 
-                        boolean foo = checkIsEmpty(unskewed, firstRect);
-
                         // error - not empty
                         Symbol symbol = new Symbol();
                         symbol.symbol = "@";
@@ -152,8 +142,6 @@ public class MicrRecognizer {
                     Rect lastRect = new Rect(lastOk.rect.right + 1, lastOk.rect.top, lastOk.rect.right + 2 * (micrInfo.typicalWidth + micrInfo.typicalInterval), lastOk.rect.bottom);
                     if (!checkIsEmpty(unskewed, lastRect)) {
 
-                        boolean foo = checkIsEmpty(unskewed, lastRect);
-
                         // error - not empty
                         Symbol symbol = new Symbol();
                         symbol.symbol = "@";
@@ -168,15 +156,6 @@ public class MicrRecognizer {
 
 
                 CheckData checkData = joinThinSymbols(filteredSymbols, micrInfo, unskewed);
-
-//                long tfinish = System.currentTimeMillis();
-//
-//                Log.d(TAG, "read      : " + (tread - t0));
-//                Log.d(TAG, "binarize  : " + (tbinarize - tread));
-//                Log.d(TAG, "find skew : " + (tfindSkew - tbinarize));
-//                Log.d(TAG, "uskew     : " + (tunSkew - tfindSkew));
-//                Log.d(TAG, "raw recog : " + (trawRecognize - tunSkew));
-//                Log.d(TAG, "other     : " + (tfinish - trawRecognize));
 
                 // for debug only
                 {
@@ -497,15 +476,6 @@ public class MicrRecognizer {
 
         int width = right - left;
         int height = bottom - top;
-//        int[] pixels = new int[(width + 1) * (height + 1)];
-//        bitmap.getPixels(pixels, 0, bitmap.getWidth(), left, top, width, height);
-//
-//        int blackPixelsCount = 0;
-//        for (int i=0; i<pixels.length; i++) {
-//            if (pixels[i] == 0) {
-//                blackPixelsCount++;
-//            }
-//        }
 
         int blackPixelsCount = 0;
         for (int y=top; y< bottom; y++) {
@@ -519,6 +489,6 @@ public class MicrRecognizer {
             }
         }
 
-        return blackPixelsCount < width * height * 0.01;
+        return blackPixelsCount < width * height * 0.01; // usually min 4% if there is rest of symbol
     }
 }
