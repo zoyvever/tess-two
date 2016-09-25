@@ -3,6 +3,7 @@ package com.citybase.pos.modules.checkscanner.recognition;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -21,8 +22,6 @@ import java.util.UUID;
 class Asset2File {
 
     private static final String TAG = "Asset2File";
-
-    //private static String mcrFilePath = null;
 
     @NonNull
     public static String init(@NonNull Context context) {
@@ -110,25 +109,24 @@ class Asset2File {
         try {
             //make a new picture file
             File pictureFile = getOutputMediaFile(name);
-
             if (pictureFile == null) {
-                return true;
+                return false;
             }
 
             //write the file
             FileOutputStream fos = new FileOutputStream(pictureFile);
             bm.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-            //fos.write(data);
             fos.close();
+            return true;
         } catch (Exception e) {
             Log.e(TAG, "Cannot save pic", e);
+            return false;
         }
-        return false;
     }
 
     public static File getOutputMediaFile(String name) {
 
-        File mediaStorageDir = new File("/sdcard/POS checks");
+        File mediaStorageDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "POS checks");
 
         if (!mediaStorageDir.exists()) {
             if (!mediaStorageDir.mkdirs()) {

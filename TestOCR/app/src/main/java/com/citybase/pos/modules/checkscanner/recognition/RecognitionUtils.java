@@ -13,7 +13,7 @@ import java.util.Map;
 /**
  * Created by npakudin on 10/09/16
  */
-class RecognitionUtils {
+public class RecognitionUtils {
 
     public static int findMostFrequentItem(Map<Integer, Integer> map) {
         int trueBorder = 0;

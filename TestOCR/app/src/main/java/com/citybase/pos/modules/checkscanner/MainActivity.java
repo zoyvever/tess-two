@@ -19,6 +19,7 @@ import android.widget.TextView;
 
 import com.citybase.pos.modules.checkscanner.recognition.CheckData;
 import com.citybase.pos.modules.checkscanner.recognition.MicrRecognizer;
+import com.citybase.pos.modules.checkscanner.recognition.RecognitionUtils;
 import com.example.npakudin.testocr.R;
 
 import java.io.IOException;
@@ -159,7 +160,7 @@ public class MainActivity extends Activity {
 
                     //String realText = file.substring(0, file.length() - 5).replace("_", " ");
                     String realText = "a271071321a c9080054103c 0903";
-                    int distance = Utils.levenshteinDistance(rawText, realText);
+                    int distance = RecognitionUtils.levenshteinDistance(rawText, realText);
 
                     totalSymbols += checkData.rawText.length();
                     symbolErrors += distance;
