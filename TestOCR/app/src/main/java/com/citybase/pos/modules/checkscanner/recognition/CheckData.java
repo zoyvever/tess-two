@@ -27,7 +27,7 @@ public class CheckData {
         this.rawText = rawText;
         this.confidence=confidence;
 
-        if (!rawText.matches("^[0-9a-d ]*$")) {
+        if (!rawText.matches("^[0-9a-d ]+$")) {
             isOk = false;
             errorMessage = "Cannot recognize some characters";
             return;

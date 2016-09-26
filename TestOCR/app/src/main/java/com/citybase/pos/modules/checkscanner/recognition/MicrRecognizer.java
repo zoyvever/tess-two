@@ -72,9 +72,9 @@ public class MicrRecognizer {
 
         List<Pair<Integer, Float>> windowAndThresholds = new ArrayList<>();
         windowAndThresholds.add(new Pair<>(16, 0.80f));
-//        windowAndThresholds.add(new Pair<>(32, 0.80f));
-//        windowAndThresholds.add(new Pair<>(64, 0.80f));
-//        windowAndThresholds.add(new Pair<>(16, 0.35f));
+        windowAndThresholds.add(new Pair<>(32, 0.80f));
+        windowAndThresholds.add(new Pair<>(64, 0.80f));
+        windowAndThresholds.add(new Pair<>(16, 0.35f));
 
         boolean isCropped = false;
 
@@ -84,6 +84,8 @@ public class MicrRecognizer {
         String imageName = Asset2File.uniqueName();
         Asset2File.saveBitmap(bitmap, imageName + "_src");
 
+
+        CheckData bestCheckData = new CheckData("", 0);
 
         for (Pair<Integer, Float> item : windowAndThresholds) {
             int windowSize = item.first;
@@ -121,6 +123,10 @@ public class MicrRecognizer {
                 symbols = filterByBorders(symbols, confidentBorders);
 
 
+                symbols = replaceByWidth(symbols, micrInfo);
+                symbols = replaceByConfidence(symbols);
+
+
                 List<Interval> intervals = findIntervals(symbols, micrInfo);
                 List<Symbol> intervalSymbols = intervalsToSymbols(intervals, unskewed, micrInfo);
                 symbols = merge(
@@ -133,8 +139,10 @@ public class MicrRecognizer {
                 {
                     int distance = RecognitionUtils.levenshteinDistance(checkData.rawText, realText);
                     Bitmap drawed = RecognitionUtils.drawRecText(unskewed, 3.0f, symbols, realText, distance);
-                    checkData.image = drawed;
-                    Asset2File.saveBitmap(drawed, String.format(Locale.ENGLISH, "%s_unskewed_%d_%.2f", imageName, windowSize, threshold));
+
+                    Bitmap tmp = RecognitionUtils.cropBitmap(drawed, Math.max(0, borders.top - 80), Math.min(bitmap.getHeight(), borders.bottom + 80));
+                    checkData.image =  tmp;
+                    Asset2File.saveBitmap(tmp, String.format(Locale.ENGLISH, "%s_unskewed_%d_%.2f", imageName, windowSize, threshold));
                 }
 
                 if (intervalSymbols.get(0).symbol.equals(NEED_MORE_SPACE_AT_LEFT) ||
@@ -146,12 +154,12 @@ public class MicrRecognizer {
                     return checkData;
                 }
 
-
                 if (checkData.isOk){
-                    //Log.d(TAG, "OK recognize image with windowSize: " + windowSize + "; threshold: " + threshold);
+                    Log.d(TAG, "OK recognize image with windowSize: " + windowSize + "; threshold: " + threshold);
+                    //checkData.image = null;
                     return checkData;
                 }
-                //Log.d(TAG, "Cannot recognize image with windowSize: " + windowSize + "; threshold: " + threshold);
+                Log.d(TAG, "Cannot recognize image with windowSize: " + windowSize + "; threshold: " + threshold);
 
                 if (!isCropped) {
 
@@ -165,13 +173,16 @@ public class MicrRecognizer {
                     isCropped = true;
                 }
 
-                return checkData;
+                if (checkData.confidence > bestCheckData.confidence &&
+                        (checkData.isOk || !bestCheckData.isOk)) {
+                    bestCheckData = checkData;
+                }
             } catch (Exception e) {
                 Log.e(TAG, "Exception on recognize image with windowSize: " + windowSize + "; threshold: " + threshold, e);
             }
         }
         Log.d(TAG, "Cannot recognize image with any params");
-        return new CheckData("", 0);
+        return bestCheckData;
     }
 
     private static List<Symbol> merge(List<Symbol> symbols1, List<Symbol> symbols2) {
@@ -208,7 +219,7 @@ public class MicrRecognizer {
                 continue;
             }
 
-            if (interval.rect.width() > (micrInfo.typicalWidth + micrInfo.typicalInterval) * 1.2) {
+            if (interval.rect.width() > (micrInfo.typicalWidth + micrInfo.typicalInterval) * 1.0) {
                 symbols.add(new Symbol(" ", 99, interval.rect));
             }
         }
@@ -414,6 +425,19 @@ public class MicrRecognizer {
         return filteredSymbols;
     }
 
+    @NonNull
+    private static List<Symbol> replaceByConfidence(@NonNull List<Symbol> symbols) {
+
+        List<Symbol> filteredSymbols = new ArrayList<>();
+        for (Symbol symbol : symbols) {
+
+            if (symbol.confidence < MIN_CONFIDENCE) {
+                symbol.symbol = "&";
+            }
+            filteredSymbols.add(symbol);
+        }
+        return filteredSymbols;
+    }
 
     /**
      * Joins symbols if there are 2 or 3 symbols in a row are too thin
@@ -441,7 +465,7 @@ public class MicrRecognizer {
             }
         }
 
-        CheckData checkData = new CheckData(builder.toString(), conf / symbols.size());
+        CheckData checkData = new CheckData(builder.toString().trim(), conf / symbols.size());
         checkData.minConfidence = minconf;
         return checkData;
     }
