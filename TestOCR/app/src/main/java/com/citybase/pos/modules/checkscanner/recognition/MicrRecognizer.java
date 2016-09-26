@@ -82,7 +82,7 @@ public class MicrRecognizer {
         // for debug only
         String realText = "a271071321a c9080054103c 0903";
         String imageName = Asset2File.uniqueName();
-        Asset2File.saveBitmap(bitmap, imageName + "_src");
+        Asset2File.saveBitmap(bitmap, "raw_" + imageName);
 
 
         CheckData bestCheckData = new CheckData("", 0);
@@ -142,7 +142,7 @@ public class MicrRecognizer {
 
                     Bitmap tmp = RecognitionUtils.cropBitmap(drawed, Math.max(0, borders.top - 80), Math.min(bitmap.getHeight(), borders.bottom + 80));
                     checkData.image =  tmp;
-                    Asset2File.saveBitmap(tmp, String.format(Locale.ENGLISH, "%s_unskewed_%d_%.2f", imageName, windowSize, threshold));
+                    Asset2File.saveBitmap(tmp, String.format(Locale.ENGLISH, "binarized_%s_%d_%.2f", imageName, windowSize, threshold));
                 }
 
                 if (intervalSymbols.get(0).symbol.equals(NEED_MORE_SPACE_AT_LEFT) ||
@@ -165,11 +165,11 @@ public class MicrRecognizer {
 
                     // unskew SOURCE image
                     bitmap = WriteFile.writeBitmap(Rotate.rotate(pix, skew));
-                    Asset2File.saveBitmap(bitmap, String.format(Locale.ENGLISH, "%s_src_unskewed", imageName));
+                    //Asset2File.saveBitmap(bitmap, String.format(Locale.ENGLISH, "unskewed_%s", imageName));
                     assert bitmap != null;
                     // crop
                     bitmap = RecognitionUtils.cropBitmap(bitmap, Math.max(0, borders.top - 40), Math.min(bitmap.getHeight(), borders.bottom + 40));
-                    Asset2File.saveBitmap(bitmap, String.format(Locale.ENGLISH, "%s_src_unskewed_cropped", imageName));
+                    //Asset2File.saveBitmap(bitmap, String.format(Locale.ENGLISH, "cropped_%s", imageName));
                     isCropped = true;
                 }
 
