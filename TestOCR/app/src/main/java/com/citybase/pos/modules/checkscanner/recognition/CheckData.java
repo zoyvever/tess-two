@@ -27,8 +27,7 @@ public class CheckData {
         this.rawText = rawText;
         this.confidence=confidence;
 
-        //if (rawText.contains("#") || rawText.contains("@")) {
-        if (rawText.contains("#")) {
+        if (!rawText.matches("^[0-9a-d ]*$")) {
             isOk = false;
             errorMessage = "Cannot recognize some characters";
             return;
@@ -95,7 +94,7 @@ public class CheckData {
         pair = parse(src, Pattern.compile("([acd ])([0-9d]{8,13})c?$"), "$1", 2);
         if (pair.first != null && pair.first.length() > 0) {
             // in the middle can be "d"
-            accountNumber = pair.first;
+            accountNumber = pair.first.replace('d', '-');
             src = pair.second;
         } else {
             // not found - failure

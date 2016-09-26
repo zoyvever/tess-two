@@ -20,6 +20,7 @@ import com.googlecode.tesseract.android.TessBaseAPI;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -31,8 +32,12 @@ public class MicrRecognizer {
     private static final String TAG = "MicrRecognizer";
 
     public static final int MIN_CONFIDENCE = 70;
-    public static final double SYMBOL_SIZE_VARIATION = 0.2;
-    public static final double FREE_SPACE_AT_LEFT =  1.5; // in symbols
+    public static final double SYMBOL_SIZE_VARIATION = 0.1;
+    public static final double FREE_SPACE_AT_LEFT =  1.3; // in symbols
+
+    public static final String NEED_MORE_SPACE_AT_LEFT = "!";
+    public static final String NOT_RECOGNIZED = "$";
+    public static final String WRONG_SYMBOL_SIZE = "#";
 
     private static String mcrFilePath = null;
 
@@ -98,87 +103,47 @@ public class MicrRecognizer {
                 }
                 assert unskewed != null; // if null - send a message
 
-                List<Symbol> symbols = rawRecognize(unskewed, null);
-                Rect borders = findBorders(symbols);
-                List<Symbol> filteredSymbols = filterByBorders(symbols, borders);
-                MicrInfo micrInfo = findStats(filteredSymbols);
-                filteredSymbols = filterByWidth(filteredSymbols, micrInfo);
-                //filteredSymbols = filterByConfidence(filteredSymbols);
-
-                {
-                    // find first and last with good confidence
-                    Symbol firstOk = null;
-                    Symbol lastOk = null;
-                    for (int i = 0; i < filteredSymbols.size(); i++) {
-                        Symbol symbol = filteredSymbols.get(i);
-                        if (symbol.confidence > MIN_CONFIDENCE) {
-                            if (firstOk == null) {
-                                firstOk = symbol;
-                            }
-                            lastOk = symbol;
-                        }
-                    }
-                    assert firstOk != null;
-                    assert lastOk != null;
+                List<Symbol> rawSymbols = rawRecognize(unskewed, null);
+                Rect borders = findBorders(rawSymbols);
+                List<Symbol> symbols = filterByBorders(rawSymbols, borders);
+                MicrInfo micrInfo = findStats(symbols, borders);
 
 
-                    // check pixels whiteness before firstOK
-                    Rect firstRect = new Rect(firstOk.rect.left - 2 * (micrInfo.typicalWidth + micrInfo.typicalInterval), firstOk.rect.top, firstOk.rect.left - 1, firstOk.rect.bottom);
-                    if (!checkIsEmpty(unskewed, firstRect)) {
-
-                        // error - not empty
-                        Symbol symbol = new Symbol();
-                        symbol.symbol = "@";
-                        symbol.rect = firstRect;
-                        symbol.confidence = 99.0f;
-
-                        filteredSymbols.add(0, symbol); // insert at the beginning
-
-                        Log.d(TAG, "is not empty block");
-                    }
-
-
-                    // check pixels whiteness after lastOK
-                    Rect lastRect = new Rect(lastOk.rect.right + 1, lastOk.rect.top, lastOk.rect.right + 2 * (micrInfo.typicalWidth + micrInfo.typicalInterval), lastOk.rect.bottom);
-                    if (!checkIsEmpty(unskewed, lastRect)) {
-
-                        // error - not empty
-                        Symbol symbol = new Symbol();
-                        symbol.symbol = "@";
-                        symbol.rect = lastRect;
-                        symbol.confidence = 99.0f;
-
-                        filteredSymbols.add(symbol);
-
-                        Log.d(TAG, "is not empty block");
-                    }
+                //List<Symbol> confidentSymbols = replaceByWidth(symbols, micrInfo);
+                List<Symbol> confidentSymbols = filterByConfidence(symbols);
+                if (confidentSymbols.size() == 0) {
+                    // error
+                    continue;
                 }
+                Symbol firstConfident = confidentSymbols.get(0);
+                Symbol lastConfident = confidentSymbols.get(confidentSymbols.size() - 1);
+                Rect confidentBorders = new Rect(firstConfident.rect.left, borders.top, lastConfident.rect.right, borders.bottom);
+                symbols = filterByBorders(symbols, confidentBorders);
 
 
-                CheckData checkData = joinThinSymbols(filteredSymbols, micrInfo, unskewed);
+                List<Interval> intervals = findIntervals(symbols, micrInfo);
+                List<Symbol> intervalSymbols = intervalsToSymbols(intervals, unskewed, micrInfo);
+                symbols = merge(
+                        replaceByWidth(symbols, micrInfo),
+                        intervalSymbols);
+
+                CheckData checkData = joinThinSymbols(symbols, micrInfo, unskewed);
 
                 // for debug only
                 {
                     int distance = RecognitionUtils.levenshteinDistance(checkData.rawText, realText);
-                    Bitmap drawed = RecognitionUtils.drawRecText(unskewed, 3.0f, filteredSymbols, realText, distance);
+                    Bitmap drawed = RecognitionUtils.drawRecText(unskewed, 3.0f, symbols, realText, distance);
                     checkData.image = drawed;
                     Asset2File.saveBitmap(drawed, String.format(Locale.ENGLISH, "%s_unskewed_%d_%.2f", imageName, windowSize, threshold));
                 }
 
+                if (intervalSymbols.get(0).symbol.equals(NEED_MORE_SPACE_AT_LEFT) ||
+                        intervalSymbols.get(intervalSymbols.size() - 1).symbol.equals(NEED_MORE_SPACE_AT_LEFT)) {
 
-                if (filteredSymbols.size() > 0) {
-                    int left = filteredSymbols.get(0).rect.left;
-                    int right = filteredSymbols.get(filteredSymbols.size() - 1).rect.right;
+                    checkData.errorMessage += "MICR number can be cut, leave more free space at the left and right of text";
+                    checkData.isOk = false;
 
-                    if ((left < micrInfo.typicalWidth * FREE_SPACE_AT_LEFT) ||
-                            (unskewed.getWidth() - right < micrInfo.typicalWidth * FREE_SPACE_AT_LEFT)) {
-                        // MICR text may be cutted
-                        checkData.errorMessage += "MICR number can be cut, leave more free space at the left and right of text";
-                        checkData.isOk = false;
-
-                        // cropping won't help => return checkData now
-                        return checkData;
-                    }
+                    return checkData;
                 }
 
 
@@ -207,6 +172,70 @@ public class MicrRecognizer {
         }
         Log.d(TAG, "Cannot recognize image with any params");
         return new CheckData("", 0);
+    }
+
+    private static List<Symbol> merge(List<Symbol> symbols1, List<Symbol> symbols2) {
+
+        List<Symbol> symbols = new ArrayList<>();
+        symbols.addAll(symbols1);
+        symbols.addAll(symbols2);
+
+        Collections.sort(symbols, new Comparator<Symbol>() {
+            @Override
+            public int compare(Symbol s1, Symbol s2) {
+
+                return s1.rect.left < s2.rect.left ? -1 :
+                        s1.rect.left == s2.rect.left ? 0 : 1;
+            }
+        });
+
+        return symbols;
+    }
+
+    private static List<Symbol> intervalsToSymbols(List<Interval> intervals, Bitmap bitmap, MicrInfo micrInfo) {
+
+        List<Symbol> symbols = new ArrayList<>();
+
+        for (Interval interval : intervals) {
+            if (interval.rect.left < 0 || interval.rect.right >= bitmap.getWidth()) {
+                symbols.add(new Symbol(NEED_MORE_SPACE_AT_LEFT, 99, interval.rect));
+                continue;
+            }
+
+            // 1% of typical width
+            if (!isWhiteArea(bitmap, interval.rect, 0.01 * interval.rect.width() / micrInfo.typicalWidth)) {
+                symbols.add(new Symbol(NOT_RECOGNIZED, 99, interval.rect));
+                continue;
+            }
+
+            if (interval.rect.width() > (micrInfo.typicalWidth + micrInfo.typicalInterval) * 1.2) {
+                symbols.add(new Symbol(" ", 99, interval.rect));
+            }
+        }
+
+        return symbols;
+    }
+
+    @NonNull
+    private static String createString(int count, char c) {
+        return new String(new char[count]).replace('\0', c);
+    }
+
+    private static List<Interval> findIntervals(List<Symbol> symbols, MicrInfo micrInfo) {
+
+        List<Interval> intervals = new ArrayList<>();
+
+        int prevRight = symbols.get(0).rect.left - (int)(FREE_SPACE_AT_LEFT * (micrInfo.typicalWidth + micrInfo.typicalInterval));
+        for (Symbol symbol : symbols) {
+            Rect rect = new Rect(prevRight + 1, micrInfo.borders.top, symbol.rect.left - 1, micrInfo.borders.bottom);
+            intervals.add(new Interval(rect)); // here adds 1st interval on 1st iter
+            prevRight = symbol.rect.right;
+        }
+        // add last interval
+        Rect rect = new Rect(prevRight + 1, micrInfo.borders.top, prevRight + (int)(FREE_SPACE_AT_LEFT * (micrInfo.typicalWidth + micrInfo.typicalInterval)), micrInfo.borders.bottom);
+        intervals.add(new Interval(rect));
+
+        return intervals;
     }
 
 
@@ -267,15 +296,16 @@ public class MicrRecognizer {
         }
         int topBorder = RecognitionUtils.findMostFrequentItem(topFrequencies);
         int bottomBorder = RecognitionUtils.findMostFrequentItem(bottomFrequencies);
-        int tolerance = (int) (0.6 * (bottomBorder - topBorder));
+        //int tolerance = (int) (0.6 * (bottomBorder - topBorder));
+        int tolerance = 0;
         return new Rect(left, topBorder - tolerance, right, bottomBorder + tolerance);
     }
 
     @NonNull
-    private static MicrInfo findStats(@NonNull List<Symbol> symbols) {
+    private static MicrInfo findStats(@NonNull List<Symbol> symbols, Rect borders) {
 
         if (symbols.size() == 0) {
-            return new MicrInfo(0, 0, 0);
+            return new MicrInfo(0, 0, 0, borders);
         }
 
         List<Integer> widths = new ArrayList<>();
@@ -297,17 +327,21 @@ public class MicrRecognizer {
         Collections.sort(heights);
         Collections.sort(intervals);
 
+        MicrInfo micrInfo = new MicrInfo();
+        micrInfo.typicalWidth = widths.get(widths.size() / 2);
+        micrInfo.typicalHeight = heights.get(heights.size() / 2);
+        micrInfo.typicalInterval = intervals.get(intervals.size() / 2);
+        micrInfo.borders = borders;
 
-
-        return new MicrInfo(widths.get(widths.size() / 2), heights.get(heights.size() / 2), intervals.get(intervals.size() / 2));
+        return micrInfo;
     }
 
-    /**
-     * Remove overlapping symbols
-     *
-     */
     @NonNull
     private static List<Symbol> filterByBorders(@NonNull List<Symbol> symbols, @NonNull Rect borders) {
+
+        // increase filtering area
+        int tolerance = (int) (0.6 * (borders.bottom - borders.top));
+        borders = new Rect(borders.left, borders.top - tolerance, borders.right, borders.bottom + tolerance);
 
         int right = 0;
         List<Symbol> filteredSymbols = new ArrayList<>();
@@ -316,21 +350,19 @@ public class MicrRecognizer {
             Rect rect = symbol.rect;
             if (borders.contains(rect)) {
                 //if the rectangle starts before the last one ends- throw it away
-                if (rect.left > right) {
-                    //otherwise remember when it ends for future comparing
-                    right = rect.right;
-
-                    filteredSymbols.add(symbol);
-                } else {
-                    //Log.d(TAG, "NEXT SYMBOL STARTS BEFORE PREV ENDS");
+                if (rect.left < right) {
+                    Log.d(TAG, "rect.left < right: " + rect);
+                    continue;
                 }
+                right = rect.right;
+                filteredSymbols.add(symbol);
             }
         }
         return filteredSymbols;
     }
 
     @NonNull
-    private static List<Symbol> filterByWidth(@NonNull List<Symbol> symbols, @NonNull MicrInfo micrInfo) {
+    private static List<Symbol> replaceByWidth(@NonNull List<Symbol> symbols, @NonNull MicrInfo micrInfo) {
 
         List<Symbol> filteredSymbols = new ArrayList<>();
         for (Symbol symbol : symbols) {
@@ -338,17 +370,17 @@ public class MicrRecognizer {
             Rect rect = symbol.rect;
             if (symbol.symbol.matches("[ab02-9]]")) {
                 if (!isWidthOk(rect, micrInfo) || !isHeightOk(rect, micrInfo)) {
-                    symbol.symbol = "#";
+                    symbol.symbol = WRONG_SYMBOL_SIZE;
                     //continue;
                 }
             } else if (symbol.symbol.matches("1")) {
                 if (!isHeightOk(rect, micrInfo)) {
-                    symbol.symbol = "#";
+                    symbol.symbol = WRONG_SYMBOL_SIZE;
                     //continue;
                 }
             } else if (symbol.symbol.matches("cd")) {
                 if (!isWidthOk(rect, micrInfo)) {
-                    symbol.symbol = "#";
+                    symbol.symbol = WRONG_SYMBOL_SIZE;
                     //continue;
                 }
             }
@@ -374,7 +406,8 @@ public class MicrRecognizer {
         for (Symbol symbol : symbols) {
 
             if (symbol.confidence < MIN_CONFIDENCE) {
-                symbol.symbol = "#";
+                //symbol.symbol = "#";
+                continue;
             }
             filteredSymbols.add(symbol);
         }
@@ -396,56 +429,8 @@ public class MicrRecognizer {
         double minconf = 100;
         List<Symbol> symbols = new ArrayList<>();
 
-        // find first and last with good confidence
-        Symbol firstOk = null;
-        Symbol lastOk = null;
         for (int i = 0; i < rawSymbols.size(); i++) {
             Symbol symbol = rawSymbols.get(i);
-            if (symbol.confidence > MIN_CONFIDENCE) {
-                if (firstOk == null) {
-                    firstOk = symbol;
-                }
-                lastOk = symbol;
-            }
-        }
-        assert firstOk != null;
-        assert lastOk != null;
-
-        for (int i = 0; i < rawSymbols.size(); i++) {
-            Symbol symbol = rawSymbols.get(i);
-
-            if (symbol.confidence < MIN_CONFIDENCE) {
-                if ((firstOk.rect.left - symbol.rect.left > micrInfo.typicalWidth * (1 + SYMBOL_SIZE_VARIATION) ) ||
-                        (symbol.rect.left - lastOk.rect.left > micrInfo.typicalWidth * (1 + SYMBOL_SIZE_VARIATION) )) {
-                    // skip, if symbol is before or after the line
-                    // and there are spaces between (so, it's not badly recognized 1st or last symbol)
-                    continue;
-                } else {
-                    symbol.symbol = "#";
-                }
-            }
-
-            //if (symbol != null && symbol.confidence >= MIN_CONFIDENCE) {
-
-            boolean isAddSpace = false;
-            if (symbols.size() > 0) {
-                int prevRight = symbols.get(symbols.size() - 1).rect.right;
-                if (symbol.rect.left - prevRight > micrInfo.typicalWidth * (1 + SYMBOL_SIZE_VARIATION)) {
-
-                    // TODO: check, that here is empty
-                    if (!checkIsEmpty(bitmap, prevRight + 1, symbol.rect.top, symbol.rect.left - 1, symbol.rect.bottom)) {
-                        // error - not empty
-                        builder.append("#");
-                        Log.d(TAG, "is not empty block");
-                    } else {
-                        isAddSpace = true;
-                    }
-                }
-            }
-
-            if (isAddSpace) {
-                builder.append(" ");
-            }
 
             symbols.add(symbol);
             builder.append(symbol.symbol);
@@ -454,7 +439,6 @@ public class MicrRecognizer {
             if (symbol.confidence < minconf) {
                 minconf = symbol.confidence;
             }
-            //}
         }
 
         CheckData checkData = new CheckData(builder.toString(), conf / symbols.size());
@@ -462,24 +446,24 @@ public class MicrRecognizer {
         return checkData;
     }
 
-    private static boolean checkIsEmpty(Bitmap bitmap, Rect rect) {
+    private static boolean isWhiteArea(Bitmap bitmap, Rect rect, double allowedPercent) {
 
-        return checkIsEmpty(bitmap, rect.left, rect.top, rect.right, rect.bottom);
+        return isWhiteArea(bitmap, rect.left, rect.top, rect.right, rect.bottom, allowedPercent);
     }
 
-    private static boolean checkIsEmpty(Bitmap bitmap, int left, int top, int right, int bottom) {
+    private static boolean isWhiteArea(Bitmap bitmap, int left, int top, int right, int bottom, double allowedPercent) {
 
-        left = Math.max(0, left);
-        top = Math.max(0, top);
-        right = Math.min(bitmap.getWidth(), right);
-        bottom = Math.min(bitmap.getHeight(), bottom);
+//        left = Math.max(0, left);
+//        top = Math.max(0, top);
+//        right = Math.min(bitmap.getWidth(), right);
+//        bottom = Math.min(bitmap.getHeight(), bottom);
 
         int width = right - left;
         int height = bottom - top;
 
         int blackPixelsCount = 0;
-        for (int y=top; y< bottom; y++) {
-            for (int x=left; x< right; x++) {
+        for (int y=top; y<=bottom; y++) {
+            for (int x=left; x<=right; x++) {
                 if (bitmap.getPixel(x, y) != Color.WHITE) {
                     if (bitmap.getPixel(x, y) != Color.BLACK) {
                         bitmap.setPixel(x, y, Color.RED);
@@ -489,6 +473,6 @@ public class MicrRecognizer {
             }
         }
 
-        return blackPixelsCount < width * height * 0.01; // usually min 4% if there is rest of symbol
+        return blackPixelsCount < width * height * allowedPercent;
     }
 }
