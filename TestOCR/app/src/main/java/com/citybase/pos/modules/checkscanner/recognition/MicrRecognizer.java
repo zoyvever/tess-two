@@ -133,7 +133,7 @@ public class MicrRecognizer {
                         replaceByWidth(symbols, micrInfo),
                         intervalSymbols);
 
-                CheckData checkData = joinThinSymbols(symbols, micrInfo, unskewed);
+                CheckData checkData = joinSymbols(symbols, micrInfo, unskewed);
 
                 // for debug only
                 {
@@ -445,12 +445,14 @@ public class MicrRecognizer {
      *
      */
     @NonNull
-    private static CheckData joinThinSymbols(@NonNull List<Symbol> rawSymbols, @NonNull MicrInfo micrInfo, Bitmap bitmap) {
+    private static CheckData joinSymbols(@NonNull List<Symbol> rawSymbols, @NonNull MicrInfo micrInfo, Bitmap bitmap) {
 
         StringBuilder builder = new StringBuilder();
 
         double conf = 0;
         double minconf = 100;
+        int countNotSpaces = 0;
+
         List<Symbol> symbols = new ArrayList<>();
 
         for (int i = 0; i < rawSymbols.size(); i++) {
@@ -458,14 +460,18 @@ public class MicrRecognizer {
 
             symbols.add(symbol);
             builder.append(symbol.symbol);
-            conf += symbol.confidence;
+
+            if (!symbol.symbol.equals(" ")) {
+                conf += symbol.confidence;
+                countNotSpaces++;
+            }
 
             if (symbol.confidence < minconf) {
                 minconf = symbol.confidence;
             }
         }
 
-        CheckData checkData = new CheckData(builder.toString().trim(), conf / symbols.size());
+        CheckData checkData = new CheckData(builder.toString().trim(), conf / countNotSpaces);
         checkData.minConfidence = minconf;
         return checkData;
     }

@@ -144,12 +144,12 @@ public class MainActivity extends Activity {
 
         AssetManager assetManager = getApplicationContext().getAssets();
         try {
-            String[] list = getAssets().list("img_ok");
+            String[] list = getAssets().list("img");
             Arrays.sort(list);
 
             for (String file : list) {
                 Log.d(TAG, file);
-                InputStream istr = assetManager.open("img_ok/" + file);
+                InputStream istr = assetManager.open("img/" + file);
                 Bitmap src = BitmapFactory.decodeStream(istr);
 
                 Log.d(TAG, "file: " + file + "; recognizing...");

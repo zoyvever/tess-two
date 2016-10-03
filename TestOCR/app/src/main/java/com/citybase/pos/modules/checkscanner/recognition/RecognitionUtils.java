@@ -81,7 +81,7 @@ public class RecognitionUtils {
         } else {
             textPaint.setTextSize(bm.getHeight() / 10);
         }
-        canvas.drawText("Distance: " + distance, 30, symbols.size() == 0 ? 40 : symbols.get(0).rect.top - 40, textPaint);
+        canvas.drawText("Distance: " + distance, 30, symbols.size() == 0 ? 40 : symbols.get(0).rect.top - 20, textPaint);
 
         for (int i = 0; i < symbols.size(); i++) {
 
